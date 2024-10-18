@@ -33,4 +33,4 @@ rule normalise:
 
 	
 # Set rule targets
-normalise = expand(os.path.join(config["output_dir"], "normalise", f"n-features:{{n_features}}_clr:{{clr}}_M:{{regress_percent_mitochondrial}}_C:{{regress_cell_cycle}}.{config.get('format', 'qs')}"), n_features=config.get("n-features", 3000), clr=config.get("clr", "seurat"), regress_percent_mitochondrial=config.get("regress-percent-mitochondrial", False), regress_cell_cycle=config.get("regress_cell_cycle", False))
+normalise = expand(os.path.join(config["output_dir"], "normalise", f"n-features:{{n_features}}_clr:{{clr}}_M:{{regress_percent_mitochondrial}}_C:{{regress_cell_cycle}}.{config.get('format', 'qs')}"), n_features=config.get("n-features", 3000), clr=config.get("clr", "seurat"), regress_percent_mitochondrial=config.get("regress-percent-mitochondrial", False), regress_cell_cycle=config.get("regress-cell-cycle", False))
