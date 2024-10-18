@@ -23,7 +23,6 @@ rule merge:
 	message: "Merging counts and metadata"
 	shell:
 		"""
-		( \
 		cd {params.script_path} && \
 		./merge.R \
 			--samples {params.samples} \

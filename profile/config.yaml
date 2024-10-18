@@ -55,10 +55,10 @@ default-resources:
   mem_mib: null
 # Specified job resources for each rule (will
 # override defaults)
-set-threads:
-  merge: 1
-  normalise: 1
-  integrate: 4
+# set-threads:
+#   merge: 1
+#   normalise: 1
+#   integrate: 1
 # 'mem' and 'runtime' are Snakemake standard resources
 # Values supplied are parsed by the 'humanfriendly'
 # package
