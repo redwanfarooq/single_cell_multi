@@ -107,8 +107,8 @@ n-features: 3000 # default: 3000; maximum number of variable features to select
 rna-filter-features: ^MT-|^RP[SL] # default: ^MT-|^RP[SL]; regular expression pattern to filter RNA variable features (matching features will be removed)
 atac-filter-features: ^chrM # default: ^chrM; regular expression pattern to filter ATAC variable features (matching features will be removed)
 clr: seurat # default: seurat; options: seurat, original; centred-log ratio (CLR) transformation method for ADT data
-regress-percent-mitochondrial: false # default: false; regress out percentage mitochondrial gene expression
-regress-cell-cycle: false # default: false; regress out cell cycle scores
+regress-percent-mitochondrial: true # default: false; regress out percentage mitochondrial gene expression
+regress-cell-cycle: true # default: false; regress out cell cycle scores
 # integrate.R
 batch: # default: orig.ident; name(s) of metadata field(s) to use for batch variable
   - orig.ident
