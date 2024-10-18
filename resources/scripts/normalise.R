@@ -213,7 +213,7 @@ if (params$adt_assay %in% Assays(seu)) {
         FUN = function(x) log(x + 1 / exp(sum(log(x + 1)) / length(x))) # original centred-log ratio (CLR) transformation (without Seurat modifications)
       )
     }
-    seu <- ScaleData(object = seu, assay = assay, do.center = FALSE, do.scale = FALSE, verbose = !params$quiet)
+    seu <- ScaleData(object = seu, assay = assay, verbose = !params$quiet)
   }
 }
 
