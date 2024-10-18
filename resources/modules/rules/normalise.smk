@@ -22,7 +22,6 @@ rule normalise:
 	message: "Normalising counts and finding variable features"
 	shell:
 		"""
-		( \
 		cd {params.script_path} && \
 		./normalise.R \
 			--input {input} \

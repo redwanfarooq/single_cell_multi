@@ -21,7 +21,6 @@ rule integrate:
 	message: "Integrating data"
 	shell:
 		"""
-		( \
 		cd {params.script_path} && \
 		./integrate.R \
 			--input {input} \
