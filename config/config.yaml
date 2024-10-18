@@ -52,7 +52,7 @@
 #       - Compute corrected values for ADT data by
 #         projecting integrated embeddings back into
 #         normalised count space
-module: default
+module: 
 
 
 # --------------------------------------------------
@@ -110,8 +110,8 @@ clr: seurat # default: seurat; options: seurat, original; centred-log ratio (CLR
 regress-percent-mitochondrial: true # default: false; regress out percentage mitochondrial gene expression
 regress-cell-cycle: true # default: false; regress out cell cycle scores
 # integrate.R
-batch: 
-  - orig.ident # default: orig.ident; name(s) of metadata field(s) to use for batch variable
-normalisation-method: SCT # default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
+batch: # default: orig.ident; name(s) of metadata field(s) to use for batch variable
+  - orig.ident
+normalisation-method: LogNormalize # default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
 integration-method: rpca # default: rpca; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
-integration-args: sample.tree = build.sample.tree(list(1:3)) # default: null; additional arguments to pass to integration function (to prevent parsing errors, use ONLY double quotes within the arguments)
+integration-args: null # default: null; additional arguments to pass to integration function (to prevent parsing errors, use ONLY double quotes within the arguments)
