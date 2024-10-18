@@ -1,0 +1,14 @@
+##########################################################################################
+# Module rule specifications file for Snakemake single cell multiprocessing pipeline
+# Author: Redwan Farooq
+##########################################################################################
+
+# --------------------------------------------------
+# Modules
+# --------------------------------------------------
+# Available pipeline module names and lists of rule
+# names (as per *.smk file names) in each module
+default:
+  - merge
+  - normalise
+  - integrate

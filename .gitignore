@@ -1,0 +1,18 @@
+# Hidden folders
+**/.*/
+
+# Temporary files
+**/temp
+
+# Log files
+**/logs
+**/slurm
+**/stamps
+
+# Metadata files
+**/metadata
+
+# Specific file extensions
+*.ipynb
+*.pyc
+**/Snakefile

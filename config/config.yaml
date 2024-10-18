@@ -1,0 +1,117 @@
+##########################################################################################
+# Configuration file for Snakemake pipeline
+# Author: Redwan Farooq
+# Complete ALL entries in sections marked 'REQUIRED'
+# Comment ('#') any unused entries in sections marked 'OPTIONAL'
+##########################################################################################
+
+
+# --------------------------------------------------
+# Module
+# --------------------------------------------------
+# REQUIRED
+# Pipeline module for multi workflow
+# Options:
+#   default: Default pipeline
+#     1. Data cleaning
+#       - Get gene symbols from Ensembl IDs for RNA
+#         data
+#       - Remove isotype control tags for ADT data
+#       - Merge ATAC peak set by union of overlapping
+#         peaks and requantify reads in merged peaks
+#       - Optional: Downsample counts to match
+#         sequencing depth across libraries
+#       - Optional: Binarize ATAC counts
+#     2. Combine multimodal count matrices and metadata
+#        into merged Seurat object
+#     3. Normalisation
+#       - Seurat log-normalization and SCTransform for
+#         RNA data
+#       - Optional: regress out percentage mitochondrial
+#         gene expression and/or cell cycle scores during
+#         normalisation
+#       - Seurat latent semantic indexing for ATAC data
+#       - Centred log ratio transformation for ADT data
+#      4. Find variable features
+#       - Seurat variance stabilising transformation for
+#         RNA data
+#       - Top 95th percentile of variance for ATAC data
+#       - All features for ADT data
+#       - Optional: filter out selected features from
+#         variable feature set for RNA and ATAC
+#         data
+#     5. Compute uncorrected PCA using
+#        batchelor::multiBatchPCA
+#     6. Integration
+#       - Integrate multimodal data using Seurat v5
+#         integration methods (RPCA, JPCA, CCA, fastMNN,
+#         Harmony, scVI)
+#       - Custom modifications to wrapper functions for
+#         computational efficiency and compatibility with
+#         ChromatinAssay for ATAC data
+#       - Compute corrected values for ADT data by
+#         projecting integrated embeddings back into
+#         normalised count space
+module: default
+
+
+# --------------------------------------------------
+# Input/output
+# --------------------------------------------------
+# REQUIRED
+# Output directories
+output_dir: /project/fuggerlab/rfarooq/project/project_name/data/processed
+
+# If 'scripts_dir' not specified, defaults to
+# 'resources/scripts'
+# scripts_dir:
+# If 'metadata_dir' not specified, defaults to
+# 'metadata'
+# metadata_dir:
+
+
+# --------------------------------------------------
+# Metadata files
+# *** RELATIVE paths from 'metadata_dir' ***
+# --------------------------------------------------
+# REQUIRED
+# Input table in delimited file format (e.g. TSV, CSV)
+# Required fields:
+#   sample_id: unique sample ID
+#   hdf5: path to 10x-formatted HDF5 file containing combined multimodal count matrices
+#   metadata: path to TSV files containing cell metadata
+#   fragments: path to to ATAC fragments file (if applicable)
+input: files.tsv
+
+
+# --------------------------------------------------
+# Script parameters
+# --------------------------------------------------
+# OPTIONAL
+# Global parameters
+format: qs # default: qs; options: qs, rds
+# merge.R
+gene-types: # default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl gene biotypes to keep
+  - protein_coding
+  - lincRNA
+  - IG_C_gene
+  - TR_C_gene
+control: null # default: null; name of control sample (cross-batch technical replicate)
+binarize: false # default: false; binarize ATAC counts
+bpcells: false # default: false; use BPCells to create compressed on-disk count matrices
+downsample: false # default: false; downsample counts to match sequencing depth across libraries
+exclude-control: false # default: false; exclude control sample (cross-batch technical replicate), 'control' must be specified if true
+# normalise.R
+exp: orig.ident # default: orig.ident; name of metadata field specifying original experiment
+n-features: 3000 # default: 3000; maximum number of variable features to select
+rna-filter-features: ^MT-|^RP[SL] # default: ^MT-|^RP[SL]; regular expression pattern to filter RNA variable features (matching features will be removed)
+atac-filter-features: ^chrM # default: ^chrM; regular expression pattern to filter ATAC variable features (matching features will be removed)
+clr: seurat # default: seurat; options: seurat, original; centred-log ratio (CLR) transformation method for ADT data
+regress-percent-mitochondrial: true # default: false; regress out percentage mitochondrial gene expression
+regress-cell-cycle: true # default: false; regress out cell cycle scores
+# integrate.R
+batch: 
+  - orig.ident # default: orig.ident; name(s) of metadata field(s) to use for batch variable
+normalisation-method: SCT # default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
+integration-method: rpca # default: rpca; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
+integration-args: sample.tree = build.sample.tree(list(1:3)) # default: null; additional arguments to pass to integration function (to prevent parsing errors, use ONLY double quotes within the arguments)

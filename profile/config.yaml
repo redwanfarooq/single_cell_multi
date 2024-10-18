@@ -1,0 +1,80 @@
+##########################################################################################
+# Configuration file for Snakemake profile
+# Author: Redwan Farooq
+##########################################################################################
+
+
+# --------------------------------------------------
+# General parameters
+# --------------------------------------------------
+# See documentation for Snakemake for full list of
+# available command line flags:
+# https://snakemake.readthedocs.io/
+# ***
+# Modifying this section may prevent loading of
+# environment modules and/or conda environments
+jobscript: jobscript.sh
+use-envmodules: false
+use-conda: true
+# ***
+local-cores: 1
+jobs: 100
+latency-wait: 60
+keep-going: true
+printshellcmds: true
+
+
+# --------------------------------------------------
+# Cluster parameters
+# --------------------------------------------------
+# If 'cluster' not specified, defaults to local
+# execution
+# Shell command for job submission
+cluster:
+  mkdir -p slurm/{rule} &&
+  sbatch
+    --partition={resources.partition}
+    --ntasks={resources.tasks}
+    --cpus-per-task={threads}
+    --gpus-per-task={resources.gpus}
+    --mem={resources.mem_mb}
+    --time={resources.runtime}
+    --job-name={rule}.{jobid}
+    --output=slurm/{rule}/%x-%j.out
+    --parsable
+# Shell command for job cancellation
+cluster-cancel: scancel
+# Job name
+jobname: '{rule}.{jobid}'
+# Default global job resources
+default-resources:
+  partition: short
+  tasks: 1
+  gpus: 0
+  disk_mb: null
+  mem_mib: null
+# Specified job resources for each rule (will
+# override defaults)
+set-threads:
+  merge: 1
+  normalise: 1
+  integrate: 4
+# 'mem' and 'runtime' are Snakemake standard resources
+# Values supplied are parsed by the 'humanfriendly'
+# package
+# 'mem' accepts a number followed by a unit (B, KB,
+# MB, GB, TB, PB, KiB, MiB, GiB, TiB, PiB); converted
+# to MB and passed to 'mem_mb'
+# 'runtime' accepts a number followed by a unit (ms, s,
+# m, h, d, w, y for seconds, minutes, hours, days, weeks 
+# and years, respectively); converted to minutes
+set-resources:
+  merge:
+    mem: 50GiB
+    runtime: 1h
+  normalise:
+    mem: 100GiB
+    runtime: 3h
+  integrate:
+    mem: 100GiB
+    runtime: 3h
