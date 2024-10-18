@@ -2,8 +2,6 @@
 Functions for use in Snakemake rule definitions.
 """
 
-import re
-
 
 def parse_info(info: dict) -> dict:
     """
@@ -37,11 +35,7 @@ def get_optional_flags(**kwargs) -> str:
         (
             f"--{str(key).replace('_', '-')}"
             if isinstance(value, bool)
-            else (
-                f"--{str(key).replace('_', '-')} '{str(value)}'"
-                if re.search(r"\s|\"", str(value))
-                else f"--{str(key).replace('_', '-')} {str(value)}"
-            )
+            else (f"--{str(key).replace('_', '-')} '{str(value)}'")
         )
         for key, value in kwargs.items()
         if value

@@ -9,18 +9,18 @@ DOC <- "
 Merge counts and metadata from multisample multimodal single cell experiments
 
 Usage:
-  merge.R --samples=<sample,sample...> --output=<output> --hdf5=<path> --metadata=<path> [--fragments=<path>] [options]
+  merge.R --samples=<sample;sample...> --output=<output> --hdf5=<path[;path...]> --metadata=<path[;path...]> [--fragments=<path[;path...]>] [options]
 
 Arguments:
   REQUIRED
   --samples=<sample;sample...>            Semicolon-separated list of sample IDs
   --output=<output>                       Path to output file (must include file extension 'qs' or 'rds')
 
-  --hdf5=<path>                           Path(s) to 10x-formatted HDF5 files containing combined multimodal count matrices
-  --metadata=<path>                       Path(s) to TSV files containing cell metadata
-  --fragments=<path>                      Path(s) to ATAC fragments files (if applicable)
+  --hdf5=<path[;path...]>                 Path(s) to 10x-formatted HDF5 files containing combined multimodal count matrices
+  --metadata=<path[;path...]>             Path(s) to TSV files containing cell metadata
+  --fragments=<path[;path...]>            Path(s) to ATAC fragments files (if applicable)
 
-                                          <path> arguments must be
+                                          <path[;path...]> arguments must be
                                           EITHER semicolon-separated list of paths (1 per <sample>)
                                           OR template string for path using '{sample}' as placeholder for sample ID
 

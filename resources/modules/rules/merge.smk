@@ -16,7 +16,7 @@ rule merge:
 		samples = ";".join(samples),
 		hdf5 = ";".join([info[sample]["hdf5"] for sample in samples]),
 		metadata = ";".join([info[sample]["metadata"] for sample in samples]),
-		fragments_flag = "--fragments " + ";".join([info[sample].get("fragments", "") for sample in samples]) if any(info[sample].get("fragments", None) for sample in samples) else "",
+		fragments_flag = f"--fragments '{';'.join([info[sample].get('fragments', '') for sample in samples])}'" if any(info[sample].get("fragments", None) for sample in samples) else "",
 		optional_flags = get_optional_flags(gene_types=";".join(config.get("gene-types", list())), control=config.get("control", None), binarize=config.get("binarize", None), bpcells=config.get("bpcells", None), downsample=config.get("downsample", None), exclude_control=config.get("exclude-control", None)),
 	conda: "single_cell_multi"
 	# envmodules: "R-cbrg"
@@ -25,9 +25,9 @@ rule merge:
 		"""
 		cd {params.script_path} && \
 		./merge.R \
-			--samples {params.samples} \
-			--hdf5 {params.hdf5} \
-			--metadata {params.metadata} \
+			--samples '{params.samples}' \
+			--hdf5 '{params.hdf5}' \
+			--metadata '{params.metadata}' \
 			{params.fragments_flag} \
 			{params.optional_flags} \
 			--output {output} \
