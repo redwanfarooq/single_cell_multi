@@ -27,6 +27,9 @@ Arguments:
   OPTIONAL
   -t --threads=<int>                      Number of threads [default: 1]
   -l --log=<file>                         Path to log file [default: merge.log]
+  --rna-assay=<assay>                     RNA assay name [default: RNA]
+  --atac-assay=<assay>                    ATAC assay name [default: ATAC]
+  --adt-assay=<assay>                     ADT assay name [default: ADT]
   --gene-types=<type[;type]...>           Semicolon-separated list of Ensembl gene biotypes to keep [default: protein_coding;lincRNA;IG_C_gene;TR_C_gene]
   --control=<name>                        Name of control sample (cross-batch technical replicate)
 
@@ -338,24 +341,23 @@ seu <- future_pmap(
     gene.metadata = gene.metadata
   ),
   function(x, sample, cell.metadata, gene.metadata, fragment.objects = eval(if (exists("fragments")) fragments else NULL)) {
-    obj <- CreateSeuratObject(counts = x$RNA, assay = "RNA", project = sample, meta.data = cell.metadata)
-    obj[["RNA"]] <- AddMetaData(object = obj[["RNA"]], metadata = gene.metadata)
+    obj <- CreateSeuratObject(counts = x$RNA, assay = params$rna_assay, project = sample, meta.data = cell.metadata)
+    obj[[params$rna_assay]] <- AddMetaData(object = obj[[params$rna_assay]], metadata = gene.metadata)
     if (!is.null(x$ATAC)) {
       if (is.null(fragment.objects[[sample]])) stop("Missing fragments file for ", sample)
-      obj[["ATAC"]] <- CreateChromatinAssay(
+      obj[[params$atac_assay]] <- CreateChromatinAssay(
         counts = x$ATAC,
         sep = c(":", "-"),
         fragments = fragment.objects[[sample]],
         annotation = annotation
       )
     }
-    if (!is.null(x$ADT)) obj[["ADT"]] <- CreateAssay5Object(counts = x$ADT)
+    if (!is.null(x$ADT)) obj[[params$adt_assay]] <- CreateAssay5Object(counts = x$ADT)
     return(obj)
   },
   .options = furrr.options
 ) %>% 
-  merge(x = .[[1]], y = .[seq.int(2, length(.), by = 1)], add.cell.ids = params$samples) %>%
-  subset(subset = nCount_RNA > 0) # remove cells with zero RNA counts
+  merge(x = .[[1]], y = .[seq.int(2, length(.), by = 1)], add.cell.ids = params$samples)
 
 # Join layers
 for (x in Assays(seu)) {
