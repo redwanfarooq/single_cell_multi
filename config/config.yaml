@@ -90,6 +90,9 @@ input: files.tsv
 # OPTIONAL
 # Global parameters
 format: qs # default: qs; options: qs, rds
+rna-assay: RNA # default: RNA; RNA assay name
+atac-assay: ATAC # default: ATAC; ATAC assay name
+adt-assay: ADT # default: ADT; ADT assay name
 # merge.R
 gene-types: # default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl gene biotypes to keep
   - protein_coding
