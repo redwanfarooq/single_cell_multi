@@ -13,7 +13,9 @@ rule normalise:
 	input: merge,
 	output: os.path.join(config["output_dir"], "normalise", f"{{normalise}}.{config.get('format', 'qs')}"), 
 	log: os.path.abspath("logs/normalise/{normalise}.log")
-	threads: min(len(samples), 4)
+	threads: min(round(len(samples) / 5), 4)
+	resources:
+		mem = lambda wildcards, threads: f"{threads * 100}GiB"
 	params:
 		script_path = scripts_dir if os.path.isabs(scripts_dir) else os.path.join(workflow.basedir, scripts_dir),
 		optional_flags = get_optional_flags(rna_assay = config.get("rna-assay", None), atac_assay = config.get("atac-assay", None), adt_assay = config.get("adt-assay", None), exp=config.get("exp", None), n_features=config.get("n-features", None), rna_filter_features=config.get("rna-filter-features", None), atac_filter_features=config.get("atac-filter-features", None), clr=config.get("clr", None), regress_percent_mitochondrial=config.get("regress-percent-mitochondrial", None), regress_cell_cycle=config.get("regress-cell-cycle", None)),

@@ -70,11 +70,11 @@ default-resources:
 # and years, respectively); converted to minutes
 set-resources:
   merge:
-    mem: 50GiB
+    # mem: 25GiB
     runtime: 1h
   normalise:
-    mem: 100GiB
+    # mem: 100GiB
     runtime: 3h
   integrate:
-    mem: 100GiB
+    # mem: 100GiB
     runtime: 3h

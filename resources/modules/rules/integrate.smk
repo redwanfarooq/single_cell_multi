@@ -12,7 +12,9 @@ rule integrate:
 	input: normalise,
 	output: os.path.join(config["output_dir"], "integrate", f"{{integrate}}.{config.get('format', 'qs')}"), 
 	log: os.path.abspath("logs/integrate/{integrate}.log")
-	threads: min(len(samples), 4)
+	threads: threads: min(round(len(samples) / 5), 4)
+	resources:
+		mem = lambda wildcards, threads: f"{threads * 100}GiB"
 	params:
 		script_path = scripts_dir if os.path.isabs(scripts_dir) else os.path.join(workflow.basedir, scripts_dir),
 		optional_flags = get_optional_flags(rna_assay = config.get("rna-assay", None), atac_assay = config.get("atac-assay", None), adt_assay = config.get("adt-assay", None), batch=";".join(config.get("batch", list())), normalisation_method=config.get("normalisation-method", None), integration_method=parse_integration_method(config.get("integration-method", None)), integration_args=config.get("integration-args", None)),
