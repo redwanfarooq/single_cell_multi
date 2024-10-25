@@ -60,7 +60,7 @@ module: default
 # --------------------------------------------------
 # REQUIRED
 # Output directories
-output_dir: /project/fuggerlab/rfarooq/project/ocrelizumab_multiome/data/processed/cite_seq/cohort_02_cellbender
+output_dir: /project/fuggerlab/rfarooq/project/ocrelizumab_multiome/data/processed/cite_seq/cohort_treatment_naive/cellbender
 
 # If 'scripts_dir' not specified, defaults to
 # 'resources/scripts'
@@ -91,7 +91,7 @@ input: files.tsv
 # Global parameters
 format: qs # default: qs; options: qs, rds
 rna-assay: RNA # default: RNA; RNA assay name
-atac-assay: ATAC # default: ATAC; ATAC assay name
+# atac-assay: ATAC # default: ATAC; ATAC assay name
 adt-assay: ADT # default: ADT; ADT assay name
 # merge.R
 gene-types: # default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl gene biotypes to keep
@@ -99,11 +99,11 @@ gene-types: # default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl ge
   - lincRNA
   - IG_C_gene
   - TR_C_gene
-control: null # default: null; name of control sample (cross-batch technical replicate)
+control: Control # default: null; name of control sample (cross-batch technical replicate)
 binarize: false # default: false; binarize ATAC counts
 bpcells: false # default: false; use BPCells to create compressed on-disk count matrices
 downsample: false # default: false; downsample counts to match sequencing depth across libraries
-exclude-control: false # default: false; exclude control sample (cross-batch technical replicate), 'control' must be specified if true
+exclude-control: true # default: false; exclude control sample (cross-batch technical replicate), 'control' must be specified if true
 # normalise.R
 exp: orig.ident # default: orig.ident; name of metadata field specifying original experiment
 n-features: 3000 # default: 3000; maximum number of variable features to select
@@ -117,4 +117,4 @@ batch: # default: orig.ident; name(s) of metadata field(s) to use for batch vari
   - orig.ident
 normalisation-method: SCT # default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
 integration-method: rpca # default: rpca; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
-integration-args: sample.tree = build.sample.tree(list(1:3)) # default: null; additional arguments to pass to integration function (to prevent parsing errors, use ONLY double quotes within the arguments)
+integration-args: sample.tree = build.sample.tree(list(1:3, 4:6, 7:9, 10:12, 13:15, 16:18, 19:21, 22:24)) # default: null; additional arguments to pass to integration function (to prevent parsing errors, use ONLY double quotes within the arguments)
