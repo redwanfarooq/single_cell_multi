@@ -84,7 +84,7 @@ suppressPackageStartupMessages({
   library(BPCells)
 })
 
-options(future.globals.maxSize = 50000 * 1024^2)
+options(future.globals.maxSize = 1000000 * 1024^2)
 
 if (!dir.exists(dirname(params$output))) dir.create(dirname(params$output), recursive = TRUE)
 

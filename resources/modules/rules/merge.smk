@@ -10,7 +10,9 @@ scripts_dir = config.get("scripts_dir", "resources/scripts")
 rule merge:
 	output: os.path.join(config["output_dir"], "merge", f"{{merge}}.{config.get('format', 'qs')}"), 
 	log: os.path.abspath("logs/merge/{merge}.log")
-	threads: min(len(samples), 4)
+	threads: min(round(len(samples) / 5), 4)
+	resources:
+		mem = lambda wildcards, threads: f"{threads * 25}GiB"
 	params:
 		script_path = scripts_dir if os.path.isabs(scripts_dir) else os.path.join(workflow.basedir, scripts_dir),
 		samples = ";".join(samples),

@@ -110,7 +110,7 @@ suppressPackageStartupMessages({
   library(BPCells)
 })
 
-options(future.globals.maxSize = 50000 * 1024^2, UCSC.goldenPath.url = "http://hgdownload.soe.ucsc.edu/goldenPath")
+options(future.globals.maxSize = 1000000 * 1024^2, UCSC.goldenPath.url = "http://hgdownload.soe.ucsc.edu/goldenPath")
 furrr.options <- furrr_options(seed = 42, scheduling = FALSE)
 
 if (!dir.exists(dirname(params$output))) dir.create(dirname(params$output), recursive = TRUE)
