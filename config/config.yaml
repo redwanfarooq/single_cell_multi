@@ -52,7 +52,7 @@
 #       - Compute corrected values for ADT data by
 #         projecting integrated embeddings back into
 #         normalised count space
-module: 
+module: default
 
 
 # --------------------------------------------------
@@ -60,7 +60,7 @@ module:
 # --------------------------------------------------
 # REQUIRED
 # Output directories
-output_dir: /project/fuggerlab/rfarooq/project/project_name/data/processed
+output_dir: /project/fuggerlab/rfarooq/project/ms_snp_multiome/data/processed/gex_atac/test_02
 
 # If 'scripts_dir' not specified, defaults to
 # 'resources/scripts'
@@ -92,7 +92,7 @@ input: files.tsv
 format: qs # default: qs; options: qs, rds
 rna-assay: RNA # default: RNA; RNA assay name
 atac-assay: ATAC # default: ATAC; ATAC assay name
-adt-assay: ADT # default: ADT; ADT assay name
+# adt-assay: ADT # default: ADT; ADT assay name
 # merge.R
 gene-types: # default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl gene biotypes to keep
   - protein_coding
