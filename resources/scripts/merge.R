@@ -323,13 +323,6 @@ if (params$bpcells) {
 }
 
 
-# Load genome annotations if any ATAC assays present
-if (any(sapply(mat, function(x) names(x)) == "ATAC")) {
-  logger::log_info("Loading genome annotation")
-  annotation <- GetGRangesFromEnsDb(ensdb = EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86, biotypes = params$gene_types) %>% suppressWarnings() # suppress unhelpful warnings
-  GenomeInfoDb::seqlevelsStyle(annotation) <- "UCSC"
-}
-
 # Create merged Seurat object
 logger::log_info("Creating merged Seurat object")
 seu <- future_pmap(
@@ -347,8 +340,7 @@ seu <- future_pmap(
       obj[["ATAC"]] <- CreateChromatinAssay(
         counts = x$ATAC,
         sep = c(":", "-"),
-        fragments = fragment.objects[[sample]],
-        annotation = annotation
+        fragments = fragment.objects[[sample]]
       )
     }
     if (!is.null(x$ADT)) obj[["ADT"]] <- CreateAssay5Object(counts = x$ADT)

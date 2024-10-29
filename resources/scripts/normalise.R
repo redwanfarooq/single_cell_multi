@@ -179,12 +179,12 @@ if (params$atac_assay %in% Assays(seu)) {
       .options = furrr.options
     )
   LayerData(object = seu, assay = assay, layer = "data") <- LayerData(
-    object = merge(x = object.list[[1]], y = object.list[seq.int(2, length(object.list), by = 1)]),
+    object = if (length(object.list) > 1) merge(x = object.list[[1]], y = object.list[seq.int(2, length(object.list), by = 1)]) else object.list[[1]],
     assay = assay,
     layer = "data"
   )
   VariableFeatures(seu, assay = assay) <- map(.x = object.list, .f = VariableFeatures) %>%
-    Reduce(f = intersect, x = .) %>%
+    Reduce(f = intersect, x = ., init = Features(seu[[assay]])) %>%
     grep(pattern = params$atac_filter_features, x = ., value = TRUE, invert = TRUE)
   DefaultAssay(seu) <- default
 }
