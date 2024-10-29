@@ -10,6 +10,7 @@
 # Load modules
 import os
 import yaml
+from math import floor
 from resources.scripts.rule import *
 
 # Load and parse sample/library info from YAML file

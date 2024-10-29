@@ -116,5 +116,5 @@ regress-cell-cycle: false # default: false; regress out cell cycle scores
 batch: # default: orig.ident; name(s) of metadata field(s) to use for batch variable
   - orig.ident
 normalisation-method: LogNormalize # default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
-integration-method: rpca # default: rpca; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
+integration-method: null # default: null; options: rpca, jpca, cca, harmony, fastmnn, scvi; chosen integration method
 integration-args: null # default: null; additional arguments to pass to integration function (to prevent parsing errors, use ONLY double quotes within the arguments)

@@ -13,7 +13,7 @@ rule normalise:
 	input: merge,
 	output: os.path.join(config["output_dir"], "normalise", f"{{normalise}}.{config.get('format', 'qs')}"), 
 	log: os.path.abspath("logs/normalise/{normalise}.log")
-	threads: min(round(len(samples) / 5), 4)
+	threads: min(floor(len(samples) / 5) + 1, 4)
 	resources:
 		mem = lambda wildcards, threads: f"{threads * 100}GiB"
 	params:

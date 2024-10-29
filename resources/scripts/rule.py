@@ -62,10 +62,10 @@ def parse_integration_method(method: str | None) -> str:
             return "JPCAIntegration"
         case "cca":
             return "CCAIntegration"
-        case "fastmnn":
-            return "ReducedMNNIntegration"
         case "harmony":
             return "HarmonyIntegration"
+        case "fastmnn":
+            return "FastMNNIntegration"
         case "scvi":
             return "scVIIntegration"
         case _:
