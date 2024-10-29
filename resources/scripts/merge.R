@@ -9,11 +9,11 @@ DOC <- "
 Merge counts and metadata from multisample multimodal single cell experiments
 
 Usage:
-  merge.R --samples=<sample;sample...> --output=<output> --hdf5=<path[;path...]> --metadata=<path[;path...]> [--fragments=<path[;path...]>] [options]
+  merge.R --samples=<sample[;sample...]> --output=<output> --hdf5=<path[;path...]> --metadata=<path[;path...]> [--fragments=<path[;path...]>] [options]
 
 Arguments:
   REQUIRED
-  --samples=<sample;sample...>            Semicolon-separated list of sample IDs
+  --samples=<sample[;sample...]>          Semicolon-separated list of sample IDs
   --output=<output>                       Path to output file (must include file extension 'qs' or 'rds')
 
   --hdf5=<path[;path...]>                 Path(s) to 10x-formatted HDF5 files containing combined multimodal count matrices
@@ -61,13 +61,12 @@ logger::log_info("Parsing command line arguments")
 params <- lapply(opt, function(x) if (is.character(x)) stringr::str_split_1(string = x, pattern = ";") else x)
 
 # Check parameters
-if (length(params$samples) < 2) stop("Must provide 2 or more samples") # check at least 2 samples provided
 for (x in c("hdf5", "metadata", "fragments")) {
   if (!is.null(params[[x]]) && length(params[[x]]) != length(params$samples)) {
     if (length(params[[x]]) != 1) stop("Argument <", x, ">: number of paths must be equal to number of samples") # mismatch between number of paths and samples, if exactly 1 path provided assume it is a template string
     if (!grepl(pattern = "\\{sample\\}", x = params[[x]])) stop("Argument <", x, ">: invalid path template string '", params[[x]], "'") # template string does not contain placeholder
-    params[[x]] <- glue::glue(params[[x]], sample = params$samples) # replace placeholder(s) if path provided is template string
   }
+  params[[x]] <- glue::glue(params[[x]], sample = params$samples) # replace placeholder(s) if path provided is template string
 }
 if (!is.null(params$fragments)) {
   missing.files <- vapply(params$fragments, function(x) !file.exists(x), logical(1))
@@ -324,13 +323,6 @@ if (params$bpcells) {
 }
 
 
-# Load genome annotations if any ATAC assays present
-if (any(sapply(mat, function(x) names(x)) == "ATAC")) {
-  logger::log_info("Loading genome annotation")
-  annotation <- GetGRangesFromEnsDb(ensdb = EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86, biotypes = params$gene_types) %>% suppressWarnings() # suppress unhelpful warnings
-  GenomeInfoDb::seqlevelsStyle(annotation) <- "UCSC"
-}
-
 # Create merged Seurat object
 logger::log_info("Creating merged Seurat object")
 seu <- future_pmap(
@@ -341,23 +333,22 @@ seu <- future_pmap(
     gene.metadata = gene.metadata
   ),
   function(x, sample, cell.metadata, gene.metadata, fragment.objects = eval(if (exists("fragments")) fragments else NULL)) {
-    obj <- CreateSeuratObject(counts = x$RNA, assay = params$rna_assay, project = sample, meta.data = cell.metadata)
-    obj[[params$rna_assay]] <- AddMetaData(object = obj[[params$rna_assay]], metadata = gene.metadata)
+    obj <- CreateSeuratObject(counts = x$RNA, assay = "RNA", project = sample, meta.data = cell.metadata)
+    obj[["RNA"]] <- AddMetaData(object = obj[["RNA"]], metadata = gene.metadata)
     if (!is.null(x$ATAC)) {
       if (is.null(fragment.objects[[sample]])) stop("Missing fragments file for ", sample)
-      obj[[params$atac_assay]] <- CreateChromatinAssay(
+      obj[["ATAC"]] <- CreateChromatinAssay(
         counts = x$ATAC,
         sep = c(":", "-"),
-        fragments = fragment.objects[[sample]],
-        annotation = annotation
+        fragments = fragment.objects[[sample]]
       )
     }
-    if (!is.null(x$ADT)) obj[[params$adt_assay]] <- CreateAssay5Object(counts = x$ADT)
+    if (!is.null(x$ADT)) obj[["ADT"]] <- CreateAssay5Object(counts = x$ADT)
     return(obj)
   },
   .options = furrr.options
-) %>% 
-  merge(x = .[[1]], y = .[seq.int(2, length(.), by = 1)], add.cell.ids = params$samples)
+)
+seu <- if (length(seu) > 1) merge(x = seu[[1]], y = seu[seq.int(2, length(seu), by = 1)], add.cell.ids = params$samples) else seu[[1]]
 
 # Join layers
 for (x in Assays(seu)) {

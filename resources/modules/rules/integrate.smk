@@ -12,7 +12,7 @@ rule integrate:
 	input: normalise,
 	output: os.path.join(config["output_dir"], "integrate", f"{{integrate}}.{config.get('format', 'qs')}"), 
 	log: os.path.abspath("logs/integrate/{integrate}.log")
-	threads: threads: min(round(len(samples) / 5), 4)
+	threads: min(floor(len(samples) / 5) + 1, 4)
 	resources:
 		mem = lambda wildcards, threads: f"{threads * 100}GiB"
 	params:
@@ -34,4 +34,4 @@ rule integrate:
 
 	
 # Set rule targets
-integrate = expand(os.path.join(config["output_dir"], "integrate", f"batch:{{batch}}_normalisation:{{normalisation_method}}_integration:{{integration_method}}.{config.get('format', 'qs')}"), batch="+".join(config.get("batch", ["orig.ident"])), normalisation_method=config.get("normalisation-method", "LogNormalize"), integration_method=config.get("integration-method", "rpca"))
+integrate = expand(os.path.join(config["output_dir"], "integrate", f"batch:{{batch}}_normalisation:{{normalisation_method}}_integration:{{integration_method}}.{config.get('format', 'qs')}"), batch="+".join(config.get("batch", ["orig.ident"])), normalisation_method=config.get("normalisation-method", "LogNormalize"), integration_method=config.get("integration-method", "none"))

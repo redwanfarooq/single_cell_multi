@@ -24,7 +24,7 @@ Arguments:
   --atac-assay=<assay>                    ATAC assay name [default: ATAC]
   --adt-assay=<assay>                     ADT assay name [default: ADT]
   --normalisation-method=<method>         Normalisation method used for RNA assay ('LogNormalize' or 'SCT') [default: LogNormalize]
-  --integration-method=<method>           Integration method function name [default: RPCAIntegration]
+  --integration-method=<method>           Integration method function name ('RPCAIntegration', 'JointPCAIntegration', 'CCAIntegration', 'HarmonyIntegration', 'FastMNNIntegration' or 'scVIIntegration')
   --integration-args=<str>                Additional named arguments to pass to integration method function
 
 
@@ -84,223 +84,11 @@ suppressPackageStartupMessages({
   library(BPCells)
 })
 
+source("integration_functions.R")
+
 options(future.globals.maxSize = 1000000 * 1024^2)
 
 if (!dir.exists(dirname(params$output))) dir.create(dirname(params$output), recursive = TRUE)
-
-# Custom integration function for RLSI (RPCA for ATAC data)
-RLSIIntegration <- function(
-  object = NULL,
-  assay = NULL,
-  layers = NULL,
-  orig = NULL,
-  new.reduction = "integrated.dr",
-  reference = NULL,
-  features = NULL,
-  normalization.method = "LogNormalize",
-  dims = 1:30,
-  k.filter = NA,
-  scale.layer = NULL,
-  dims.to.integrate = NULL,
-  k.weight = 100,
-  weight.reduction = NULL,
-  sd.weight = 1,
-  sample.tree = NULL,
-  preserve.order = FALSE,
-  verbose = TRUE,
-  ...
-) {
-  op <- options(Seurat.object.assay.version = "v3", Seurat.object.assay.calcn = FALSE)
-  on.exit(expr = options(op), add = TRUE)
-  features <- features %||% SelectIntegrationFeatures5(object = object)
-  assay <- assay %||% "ATAC"
-  layers <- layers %||% Layers(object = object, search = "data")
-  # check that there enough cells present
-  ncells <- sapply(
-    X = layers,
-    FUN = function(x) {
-      ncell <- dim(object[x])[2]
-      return(ncell)
-    }
-  )
-  if (min(ncells) < max(dims))  {
-    abort(message = "At least one layer has fewer cells than dimensions specified, please lower 'dims' accordingly.")
-  }
-  object.list <- list()
-  for (i in seq_along(along.with = layers)) {
-    object.list[[i]] <- suppressMessages(suppressWarnings(
-      CreateSeuratObject(counts = NULL, data = object[layers[i]][features, ])
-    ))
-    VariableFeatures(object = object.list[[i]]) <- features
-    object.list[[i]] <- RunSVD(object = object.list[[i]], verbose = FALSE, n = max(dims))
-  }
-  anchor <- FindIntegrationAnchors(
-    object.list = object.list,
-    anchor.features = features,
-    scale = FALSE,
-    reduction = "rlsi",
-    normalization.method = normalization.method,
-    dims = dims,
-    k.filter = k.filter,
-    reference = reference,
-    verbose = verbose,
-    ...
-  )
-  slot(object = anchor, name = "object.list") <- lapply(
-    X = slot(object = anchor, name = "object.list"),
-    FUN = function(x) {
-      suppressWarnings(expr = x <- DietSeurat(x, features = features[1:2]))
-      return(x)
-    }
-  )
-  object_merged <- IntegrateEmbeddings(
-    anchorset = anchor,
-    reductions = orig,
-    new.reduction.name = new.reduction,
-    dims.to.integrate = dims.to.integrate,
-    k.weight = k.weight,
-    weight.reduction = weight.reduction,
-    sd.weight = sd.weight,
-    sample.tree = sample.tree,
-    preserve.order = preserve.order,
-    verbose = verbose
-  )
-  output.list <- list(object_merged[[new.reduction]])
-  names(output.list) <- c(new.reduction)
-  return(output.list)
-}
-attr(x = RLSIIntegration, which = "Seurat.method") <- "integration"
-
-# Custom integration function for reducedMNN (fastMNN algorithm with precomputed dimensionality reduction)
-ReducedMNNIntegration <- function(object,
-                                  assay = NULL,
-                                  layers = NULL,
-                                  orig = NULL,
-                                  new.reduction = "integrated.mnn",
-                                  features = NULL,
-                                  normalization.method = c("LogNormalize", "SCT"),
-                                  dims = 1:30,
-                                  scale.layer = "scale.data",
-                                  verbose = TRUE,
-                                  ...) {
-  rlang::check_installed(
-    pkg = "batchelor",
-    reason = "for running integration with reducedMNN"
-  )
-  assay <- assay %||% DefaultAssay(object = object)
-  layers <- layers %||% Layers(object = object, search = "data")
-  groups <- Seurat:::CreateIntegrationGroups(object, layers = layers, scale.layer = scale.layer)
-
-  if (verbose) message("Running reducedMNN")
-  out <- do.call(
-    what = batchelor::reducedMNN,
-    args = list(
-      Embeddings(object = orig)[, dims],
-      batch = groups[, 1],
-      ...
-    ),
-  )
-  merged <- CreateDimReducObject(
-    embeddings = out$corrected,
-    loadings = Loadings(object = orig)[, dims],
-    assay = assay,
-    key = paste0(gsub(pattern = "[^[:alpha:]]", replacement = "", x = new.reduction), "_")
-  ) %>%
-    suppressWarnings()
-  output.list <- list(merged)
-  names(output.list) <- c(new.reduction)
-  return(output.list)
-}
-attr(x = ReducedMNNIntegration, which = "Seurat.method") <- "integration"
-
-# Custom integration function for Harmony
-HarmonyIntegration <- function(object,
-                               assay = NULL,
-                               layers = NULL,
-                               orig = NULL,
-                               new.reduction = "integrated.harmony",
-                               features = NULL,
-                               normalization.method = c("LogNormalize", "SCT"),
-                               dims = 1:30,
-                               scale.layer = "scale.data",
-                               verbose = TRUE,
-                               ...) {
-  rlang::check_installed(
-    pkg = "harmony",
-    reason = "for running integration with Harmony"
-  )
-  assay <- assay %||% DefaultAssay(object = object)
-  layers <- layers %||% Layers(object = object, search = "data")
-  var.args <- list(...)
-  if (!is.null(var.args$meta_data) && !is.null(var.args$vars_use)) {
-    vars_use <- var.args$vars_use
-    groups <- var.args$meta_data[, vars_use]
-  } else {
-    vars_use <- "group"
-    groups <- Seurat:::CreateIntegrationGroups(object, layers = layers, scale.layer = scale.layer)
-  }
-  var.args$meta_data <- NULL
-  var.args$vars_use <- NULL
-
-  if (verbose) message("Running Harmony")
-  out <- do.call(
-    what = harmony::RunHarmony,
-    args = c(
-      list(
-        data_mat = Embeddings(object = orig)[, dims],
-        meta_data = groups,
-        vars_use = vars_use,
-        verbose = verbose
-      ),
-      var.args
-    ),
-  )
-  merged <- CreateDimReducObject(
-    embeddings = out,
-    loadings = Loadings(object = orig)[, dims],
-    assay = assay,
-    key = paste0(gsub(pattern = "[^[:alpha:]]", replacement = "", x = new.reduction), "_")
-  ) %>%
-    suppressWarnings()
-  output.list <- list(merged)
-  names(output.list) <- c(new.reduction)
-  return(output.list)
-}
-attr(x = HarmonyIntegration, which = "Seurat.method") <- "integration"
-
-# Function to build sample tree matrix for hierarchical integration
-build.sample.tree <- function(groups) {
-  ngroups <- length(groups)
-  nsamples <- map_int(groups, length)
-
-  steps <- vector(mode = "list", length = ngroups + sum(nsamples - 1) - 1)
-  breaks <- vector(mode = "integer", length = ngroups)
-
-  step <- 1
-  for (i in seq_len(ngroups)) {
-    for (j in seq_len(nsamples[i] - 1)) {
-      if (j == 1) {
-        steps[[step]] <- c(-groups[[i]][j], -groups[[i]][j + 1])
-      } else {
-        steps[[step]] <- c(step - 1, -groups[[i]][j + 1])
-      }
-      step <- step + 1
-    }
-    breaks[i] <- step - 1
-  }
-  for (i in seq_len(ngroups - 1)) {
-    if (i == 1) {
-      steps[[step]] <- c(breaks[i], breaks[i + 1])
-    } else {
-      steps[[step]] <- c(step - 1, breaks[i + 1])
-    }
-    step <- step + 1
-  }
-
-  tree <- do.call(rbind, steps)
-
-  return(tree)
-}
 
 
 # ==============================
@@ -337,9 +125,9 @@ for (x in Assays(seu)) {
 }
 
 
-# Perform integration steps
-# Integrate RNA data across batches
-logger::log_info("Integrating RNA data across {length(unique(seu$batch))} batches")
+# Perform PCA and integration steps
+# RNA data
+logger::log_info("Performing PCA for RNA data")
 params$normalisation_method <- params$normalisation_method %>% match.arg(choices = c("LogNormalize", "SCT"))
 assay <- if (params$normalisation_method == "SCT") "SCT" else params$rna_assay
 set.seed(42)
@@ -361,24 +149,27 @@ seu[["pca"]] <- CreateDimReducObject(
   key = "PC_"
 ) %>%
   suppressWarnings() # suppress unhelpful warnings
-args <- list(
-  object = "seu",
-  assay = "assay",
-  method = "match.fun(params$integration_method)",
-  normalization.method = "params$normalisation_method",
-  orig.reduction = "'pca'",
-  new.reduction = "'integrated.rna'",
-  features = "VariableFeatures(object = seu, assay = assay)",
-  dims = "1:50",
-  verbose = "!params$quiet"
-) %>%
-  paste(names(.), ., sep = " = ", collapse = ", ") %>%
-  paste(., params$integration_args, sep = ", ")
-seu <- eval(expr = parse(text = glue::glue("IntegrateLayers({args})")))
+if (!is.null(params$integration_method)) {
+  logger::log_info("Integrating RNA data across {length(unique(seu$batch))} batches")
+  args <- list(
+    object = "seu",
+    assay = "assay",
+    method = "match.fun(params$integration_method)",
+    normalization.method = "params$normalisation_method",
+    orig.reduction = "'pca'",
+    new.reduction = "'integrated.rna'",
+    features = "VariableFeatures(object = seu, assay = assay)",
+    dims = "1:50",
+    verbose = "!params$quiet"
+  ) %>%
+    paste(names(.), ., sep = " = ", collapse = ", ") %>%
+    paste(., params$integration_args, sep = ", ")
+  seu <- eval(expr = parse(text = glue::glue("IntegrateLayers({args})")))
+}
 
-# Integrate ATAC data across batches
+# ATAC data
 if (params$atac_assay %in% Assays(seu)) {
-  logger::log_info("Integrating ATAC data across {length(unique(seu$batch))} batches")
+  logger::log_info("Performing PCA for ATAC data")
   assay <- params$atac_assay
   set.seed(42)
   if (!params$quiet) message("Running multi-batch PCA")
@@ -397,34 +188,37 @@ if (params$atac_assay %in% Assays(seu)) {
     key = "LSI_"
   ) %>%
     suppressWarnings() # suppress unhelpful warnings
-  # Temporarily switch ATAC assay from ChromatinAssay to Assay v5 to enable use of IntegrateLayers
-  suppressWarnings({
-    tmp <- seu[[assay]]
-    seu[[assay]] <- CreateAssay5Object(data = GetAssayData(object = seu[[assay]], slot = "data")) %>%
-      split(f = seu$batch)
-    LayerData(object = seu, assay = assay, layer = "scale.data") <- SparseEmptyMatrix(nrow = nrow(seu[[assay]]), ncol = ncol(seu[[assay]]), rownames = rownames(seu[[assay]]), colnames = colnames(seu[[assay]]))
-  }) # suppress unhelpful warnings
-  args <- list(
-    object = "seu",
-    assay = "assay",
-    method = "match.fun(gsub(pattern = 'PCA', replacement = 'LSI', x = params$integration_method))", # use custom LSI variant of integration function for ATAC data (if applicable)
-    orig.reduction = "'lsi'",
-    new.reduction = "'integrated.atac'",
-    features = "VariableFeatures(object = tmp)",
-    dims = "1:50",
-    verbose = "!params$quiet"
-  ) %>%
-    paste(names(.), ., sep = " = ", collapse = ", ") %>%
-    paste(., params$integration_args, sep = ", ")
-  seu <- eval(expr = parse(text = glue::glue("IntegrateLayers({args})"))) %>% suppressWarnings() # suppress unhelpful warnings
-  suppressWarnings({
-    seu[[assay]] <- tmp
-  }) # suppress unhelpful warnings
+  if (!is.null(params$integration_method)) {
+    logger::log_info("Integrating ATAC data across {length(unique(seu$batch))} batches")
+    # Temporarily switch ATAC assay from ChromatinAssay to Assay v5 to enable use of IntegrateLayers
+    suppressWarnings({
+      tmp <- seu[[assay]]
+      seu[[assay]] <- CreateAssay5Object(data = GetAssayData(object = seu[[assay]], slot = "data")) %>%
+        split(f = seu$batch)
+      LayerData(object = seu, assay = assay, layer = "scale.data") <- SparseEmptyMatrix(nrow = nrow(seu[[assay]]), ncol = ncol(seu[[assay]]), rownames = rownames(seu[[assay]]), colnames = colnames(seu[[assay]]))
+    }) # suppress unhelpful warnings
+    args <- list(
+      object = "seu",
+      assay = "assay",
+      method = "match.fun(gsub(pattern = 'PCA', replacement = 'LSI', x = params$integration_method))", # use custom LSI variant of integration function for ATAC data (if applicable)
+      orig.reduction = "'lsi'",
+      new.reduction = "'integrated.atac'",
+      features = "VariableFeatures(object = tmp)",
+      dims = "1:50",
+      verbose = "!params$quiet"
+    ) %>%
+      paste(names(.), ., sep = " = ", collapse = ", ") %>%
+      paste(., params$integration_args, sep = ", ")
+    seu <- eval(expr = parse(text = glue::glue("IntegrateLayers({args})"))) %>% suppressWarnings() # suppress unhelpful warnings
+    suppressWarnings({
+      seu[[assay]] <- tmp
+    }) # suppress unhelpful warnings
+  }
 }
 
-# Integrate ADT data across batches
+# ADT data
 if (params$adt_assay %in% Assays(seu)) {
-  logger::log_info("Integrating ADT data across {length(unique(seu$batch))} batches")
+  logger::log_info("Performing PCA for ADT data")
   assay <- params$adt_assay
   set.seed(42)
   if (!params$quiet) message("Running multi-batch PCA")
@@ -444,21 +238,24 @@ if (params$adt_assay %in% Assays(seu)) {
     key = "APC_"
   ) %>%
     suppressWarnings() # suppress unhelpful warnings
-  args <- list(
-    object = "seu",
-    assay = "assay",
-    method = "match.fun(params$integration_method)",
-    orig.reduction = "'apca'",
-    new.reduction = "'integrated.adt'",
-    features = "VariableFeatures(object = seu, assay = assay)",
-    dims = "1:50",
-    verbose = "!params$quiet"
-  ) %>%
-    paste(names(.), ., sep = " = ", collapse = ", ") %>%
-    paste(., params$integration_args, sep = ", ")
-  seu <- eval(expr = parse(text = glue::glue("IntegrateLayers({args})"))) %>% suppressWarnings() # suppress unhelpful warnings
-  seu[[paste0(assay, "C")]] <- CreateAssayObject(data = t(Embeddings(seu, reduction = "integrated.adt") %*% t(Loadings(seu, reduction = "integrated.adt"))))
-  seu <- ScaleData(object = seu, assay = paste0(assay, "C"))
+  if (!is.null(params$integration_method)) {
+    logger::log_info("Integrating ADT data across {length(unique(seu$batch))} batches")
+    args <- list(
+      object = "seu",
+      assay = "assay",
+      method = "match.fun(params$integration_method)",
+      orig.reduction = "'apca'",
+      new.reduction = "'integrated.adt'",
+      features = "VariableFeatures(object = seu, assay = assay)",
+      dims = "1:50",
+      verbose = "!params$quiet"
+    ) %>%
+      paste(names(.), ., sep = " = ", collapse = ", ") %>%
+      paste(., params$integration_args, sep = ", ")
+    seu <- eval(expr = parse(text = glue::glue("IntegrateLayers({args})"))) %>% suppressWarnings() # suppress unhelpful warnings
+    seu[[paste0(assay, "C")]] <- CreateAssayObject(data = t(Embeddings(seu, reduction = "integrated.adt") %*% t(Loadings(seu, reduction = "integrated.adt"))))
+    seu <- ScaleData(object = seu, assay = paste0(assay, "C"))
+  }
 }
 
 

@@ -10,7 +10,7 @@ scripts_dir = config.get("scripts_dir", "resources/scripts")
 rule merge:
 	output: os.path.join(config["output_dir"], "merge", f"{{merge}}.{config.get('format', 'qs')}"), 
 	log: os.path.abspath("logs/merge/{merge}.log")
-	threads: min(round(len(samples) / 5), 4)
+	threads: min(floor(len(samples) / 5) + 1, 4)
 	resources:
 		mem = lambda wildcards, threads: f"{threads * 25}GiB"
 	params:
