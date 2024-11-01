@@ -52,7 +52,7 @@
 #       - Compute corrected values for ADT data by
 #         projecting integrated embeddings back into
 #         normalised count space
-module: default
+module: 
 
 
 # --------------------------------------------------
@@ -60,7 +60,7 @@ module: default
 # --------------------------------------------------
 # REQUIRED
 # Output directories
-output_dir: /project/fuggerlab/rfarooq/project/ms_snp_multiome/data/processed/gex_atac/test_02
+output_dir: /project/fuggerlab/rfarooq/project/project_name/data/processed
 
 # If 'scripts_dir' not specified, defaults to
 # 'resources/scripts'
