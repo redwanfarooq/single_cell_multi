@@ -92,7 +92,7 @@ input: files.tsv
 format: qs # default: qs; options: qs, rds
 rna-assay: RNA # default: RNA; RNA assay name
 atac-assay: ATAC # default: ATAC; ATAC assay name
-adt-assay: ADT # default: ADT; ADT assay name
+# adt-assay: ADT # default: ADT; ADT assay name
 # merge.R
 gene-types: # default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl gene biotypes to keep
   - protein_coding
@@ -116,5 +116,5 @@ regress-cell-cycle: false # default: false; regress out cell cycle scores
 batch: # default: orig.ident; name(s) of metadata field(s) to use for batch variable
   - orig.ident
 normalisation-method: LogNormalize # default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
-integration-method: null # default: null; options: null, rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
+integration-method: null # default: rpca; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
 integration-args: null # default: null; additional arguments to pass to integration function (to prevent parsing errors, use ONLY double quotes within the arguments)
