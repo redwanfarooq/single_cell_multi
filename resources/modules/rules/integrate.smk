@@ -34,4 +34,4 @@ rule integrate:
 
 	
 # Set rule targets
-integrate = expand(os.path.join(config["output_dir"], "integrate", f"batch:{{batch}}_normalisation:{{normalisation_method}}_integration:{{integration_method}}.{config.get('format', 'qs')}"), batch="+".join(config.get("batch", ["orig.ident"])), normalisation_method=config.get("normalisation-method", "LogNormalize"), integration_method=config.get("integration-method", "none"))
+integrate = expand(os.path.join(config["output_dir"], "integrate", f"batch:{{batch}}_normalisation:{{normalisation_method}}_integration:{{integration_method}}.{config.get('format', 'qs')}"), batch="+".join(config.get("batch", ["orig.ident"])), normalisation_method=config.get("normalisation-method", "LogNormalize"), integration_method=config.get("integration-method", "None"))

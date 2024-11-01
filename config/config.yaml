@@ -99,9 +99,9 @@ gene-types: # default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl ge
   - lincRNA
   - IG_C_gene
   - TR_C_gene
+peak-method: null # default: null; options: call, disjoin, reduce; method to select joint ATAC peaks across samples
 control: null # default: null; name of control sample (cross-batch technical replicate)
 binarize: false # default: false; binarize ATAC counts
-bpcells: false # default: false; use BPCells to create compressed on-disk count matrices
 downsample: false # default: false; downsample counts to match sequencing depth across libraries
 exclude-control: false # default: false; exclude control sample (cross-batch technical replicate), 'control' must be specified if true
 # normalise.R

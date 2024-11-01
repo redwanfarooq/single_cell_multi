@@ -31,13 +31,13 @@ Arguments:
   --atac-assay=<assay>                    ATAC assay name [default: ATAC]
   --adt-assay=<assay>                     ADT assay name [default: ADT]
   --gene-types=<type[;type]...>           Semicolon-separated list of Ensembl gene biotypes to keep [default: protein_coding;lincRNA;IG_C_gene;TR_C_gene]
+  --peak-method=<method>                  Method to select joint ATAC peaks across samples ('call', 'disjoin' or 'reduce')
   --control=<name>                        Name of control sample (cross-batch technical replicate)
 
 
 Options:
   -h --help                               Show this screen
   -b --binarize                           Binarize ATAC counts
-  -B --bpcells                            Use BPCells to create compressed on-disk count matrices
   -d --downsample                         Downsample counts to match sequencing depth across libraries
   -e --exclude-control                    Exclude control sample (cross-batch technical replicate)
   -q --quiet                              Do not print logging messages to console
@@ -213,25 +213,7 @@ if (!is.null(mat$ADT)) {
 }
 # Additional preprocessing steps for ATAC assays
 if (!is.null(mat$ATAC)) {
-  # Combine peaks across samples
-  logger::log_info("Finding and quantifying merged ATAC peak set")
-  # extract genomic ranges of peaks from rownames and merge overlapping peaks across samples
-  peaks <- future_map(
-    .x = mat$ATAC,
-    .f = function(x) {
-      stringr::str_split(string = rownames(x), pattern = "[:-]", simplify = TRUE) %>%
-        as.data.frame() %>%
-        setNames(c("chr", "start", "stop")) %>%
-        GenomicRanges::makeGRangesFromDataFrame() %>%
-        GenomeInfoDb::keepStandardChromosomes(pruning.mode = "coarse") # remove peaks on non-standard chromosomes
-    },
-    .options = furrr.options
-  ) %>%
-    Reduce(f = c, x = .) %>%
-    GenomicRanges::reduce()
-  # filter out bad peaks based on width
-  peaks <- peaks[width(peaks) < 10000 & width(peaks) > 20]
-  # create fragments objects
+  # Create fragments objects
   fragments <- future_pmap(
     .l = list(
       x = mat$ATAC,
@@ -249,78 +231,82 @@ if (!is.null(mat$ATAC)) {
     .options = furrr.options
   ) %>%
     setNames(names(mat$ATAC))
-  # count fragments in merged peaks
-  mat$ATAC <- pmap(
-    .l = list(
-      x = mat$ATAC,
-      sample = names(mat$ATAC),
-      fragment.object = fragments
-    ),
-    .f = function(x, sample, fragment.object, merged.peaks = peaks) {
-      if (!params$quiet) message("Counting fragments in merged peaks for ", sample)
-      FeatureMatrix(
-        fragments = fragment.object,
-        features = merged.peaks,
-        cells = colnames(x),
-        sep = c(":", "-"),
-        verbose = !params$quiet
-      )
+  if (!is.null(params$peak_method) && length(mat$ATAC) > 1) {
+    # Combine peaks across samples
+    logger::log_info("Finding and quantifying joint ATAC peak set")
+    params$peak_method <- params$peak_method %>% match.arg(choices = c("call", "disjoin", "reduce"))
+    if (params$peak_method == "call") {
+      # call peaks using MACS2
+      if (!params$quiet) message("Calling joint peaks from ", length(params$fragments), " fragments files using MACS2")
+      peaks <- CallPeaks(
+        object = params$fragments,
+        format = "BED",
+        extsize = 200,
+        shift = -100,
+        additional.args = "--nolambda --max-gap 0 --keep-dup all",
+      ) %>%
+        GenomeInfoDb::keepStandardChromosomes(pruning.mode = "coarse") # remove peaks on non-standard chromosomes
+    } else {
+      # extract genomic ranges of peaks from rownames and merge overlapping peaks across samples
+      if (!params$quiet) message("Merging peaks across samples with method '", params$peak_method, "'")
+      merge.function <- if (params$peak_method == "disjoin") GenomicRanges::disjoin else GenomicRanges::reduce
+      peaks <- future_map(
+        .x = mat$ATAC,
+        .f = function(x) {
+          stringr::str_split(string = rownames(x), pattern = "[:-]", simplify = TRUE) %>%
+            as.data.frame() %>%
+            setNames(c("chr", "start", "stop")) %>%
+            GenomicRanges::makeGRangesFromDataFrame() %>%
+            GenomeInfoDb::keepStandardChromosomes(pruning.mode = "coarse") # remove peaks on non-standard chromosomes
+        },
+        .options = furrr.options
+      ) %>%
+        Reduce(f = c, x = .) %>%
+        merge.function()
     }
-  )
-  if (params$binarize) {
-    # Binarize counts
-    logger::log_info("Binarizing ATAC counts")
-    mat$ATAC <- future_map(
-      .x = mat$ATAC,
-      .f = BinarizeCounts,
-      .options = furrr.options
+    # count fragments in merged peaks
+    mat$ATAC <- pmap(
+      .l = list(
+        x = mat$ATAC,
+        sample = names(mat$ATAC),
+        fragments.object = fragments
+      ),
+      .f = function(x, sample, fragments.object, joint.peaks = peaks) {
+        if (!params$quiet) message("Counting fragments in joint peaks for ", sample)
+        FeatureMatrix(
+          fragments = fragments.object,
+          features = joint.peaks,
+          cells = colnames(x),
+          sep = c(":", "-"),
+          verbose = !params$quiet
+        )
+      }
     )
   }
 }
-if (params$downsample) {
+if (params$downsample && length(params$samples) > 1) {
   # Downsample counts to match sequencing depth across libraries
   mat <- map2(
     .x = mat,
     .y = names(mat),
     .f = function(x, type) {
-      if (type %in% c("RNA", "ADT") || !params$binarize) { # do not downsample ATAC counts if binarized
-        set.seed(42)
-        logger::log_info("Downsampling {type} counts to match sequencing depth across {length(x)} libraries")
-        x <- as.list(downsampleBatches(x))
-      }
+      set.seed(42)
+      logger::log_info("Downsampling {type} counts to match sequencing depth across {length(x)} libraries")
+      x <- as.list(downsampleBatches(x))
       return(x)
     }
   )
 }
-mat <- transpose(mat)
-
-if (params$bpcells) {
-  # Convert to BPCells matrices
-  logger::log_info("Creating compressed on-disk count matrices")
-  mat <- future_map2(
-    .x = mat,
-    .y = names(mat),
-    .f = function(x, sample) {
-      map2(
-        .x = x,
-        .y = names(x),
-        .f = function(m, type) {
-          if (type == "RNA") { # only convert RNA matrices (IterableMatrix not currently supported for ChromatinAssay or CLR normalization)
-            if (!params$quiet) message("Writing matrix: ", glue::glue(file.path(dirname(params$output), "{sample}_{type}")))
-            bpcells <- write_matrix_dir(
-              mat = convert_matrix_type(m, type = "uint32_t"), # convert from dgCMatrix to IterableMatrix
-              dir = glue::glue(file.path(dirname(params$output), "{sample}_{type}")),
-              overwrite = TRUE
-            )
-            return(bpcells)
-          }
-          return(m)
-        }
-      )
-    },
+if (params$binarize && !is.null(mat$ATAC)) {
+  # Binarize ATAC counts
+  logger::log_info("Binarizing ATAC counts")
+  mat$ATAC <- future_map(
+    .x = mat$ATAC,
+    .f = BinarizeCounts,
     .options = furrr.options
   )
 }
+mat <- transpose(mat)
 
 
 # Create merged Seurat object
