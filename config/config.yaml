@@ -52,7 +52,7 @@
 #       - Compute corrected values for ADT data by
 #         projecting integrated embeddings back into
 #         normalised count space
-module: 
+module: default
 
 
 # --------------------------------------------------
