@@ -19,7 +19,7 @@ rule merge:
 		hdf5 = ";".join([info[sample]["hdf5"] for sample in samples]),
 		metadata = ";".join([info[sample]["metadata"] for sample in samples]),
 		fragments_flag = f"--fragments '{';'.join([info[sample].get('fragments', '') for sample in samples])}'" if any(info[sample].get("fragments", None) for sample in samples) else "",
-		optional_flags = get_optional_flags(rna_assay = config.get("rna-assay", None), atac_assay = config.get("atac-assay", None), adt_assay = config.get("adt-assay", None), gene_types=";".join(config.get("gene-types", list())), control=config.get("control", None), binarize=config.get("binarize", None), bpcells=config.get("bpcells", None), downsample=config.get("downsample", None), exclude_control=config.get("exclude-control", None)),
+		optional_flags = get_optional_flags(rna_assay = config.get("rna-assay", None), atac_assay = config.get("atac-assay", None), adt_assay = config.get("adt-assay", None), gene_types=";".join(config.get("gene-types", list())), peak_method = config.get("peak-method", None), control=config.get("control", None), binarize=config.get("binarize", None), downsample=config.get("downsample", None), exclude_control=config.get("exclude-control", None)),
 	conda: "single_cell_multi"
 	# envmodules: "R-cbrg"
 	message: "Merging counts and metadata"
@@ -39,4 +39,4 @@ rule merge:
 
 	
 # Set rule targets
-merge = expand(os.path.join(config["output_dir"], "merge", f"b:{{binarize}}_B:{{bpcells}}_d:{{downsample}}_e:{{exclude_control}}.{config.get('format', 'qs')}"), binarize=config.get("binarize", False), bpcells=config.get("bpcells", False), downsample=config.get("downsample", False), exclude_control=config.get("exclude-control", False))
+merge = expand(os.path.join(config["output_dir"], "merge", f"peak-method:{{peak_method}}_b:{{binarize}}_d:{{downsample}}.{config.get('format', 'qs')}"), peak_method = config.get("peak-method", "None"), binarize=config.get("binarize", False), downsample=config.get("downsample", False))

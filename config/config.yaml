@@ -52,7 +52,7 @@
 #       - Compute corrected values for ADT data by
 #         projecting integrated embeddings back into
 #         normalised count space
-module: default
+module: 
 
 
 # --------------------------------------------------
@@ -99,19 +99,19 @@ gene-types: # default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl ge
   - lincRNA
   - IG_C_gene
   - TR_C_gene
+peak-method: null # default: null; options: call, disjoin, reduce; method to select joint ATAC peaks across samples
 control: Control # default: null; name of control sample (cross-batch technical replicate)
 binarize: false # default: false; binarize ATAC counts
-bpcells: false # default: false; use BPCells to create compressed on-disk count matrices
 downsample: false # default: false; downsample counts to match sequencing depth across libraries
 exclude-control: true # default: false; exclude control sample (cross-batch technical replicate), 'control' must be specified if true
 # normalise.R
 exp: orig.ident # default: orig.ident; name of metadata field specifying original experiment
 n-features: 3000 # default: 3000; maximum number of variable features to select
 rna-filter-features: ^MT-|^RP[SL] # default: ^MT-|^RP[SL]; regular expression pattern to filter RNA variable features (matching features will be removed)
-atac-filter-features: ^chrM # default: ^chrM; regular expression pattern to filter ATAC variable features (matching features will be removed)
+atac-filter-features: ^chrM|^chrY # default: ^chrM|^chrY; regular expression pattern to filter ATAC variable features (matching features will be removed)
 clr: seurat # default: seurat; options: seurat, original; centred-log ratio (CLR) transformation method for ADT data
-regress-percent-mitochondrial: true # default: false; regress out percentage mitochondrial gene expression
-regress-cell-cycle: true # default: false; regress out cell cycle scores
+regress-percent-mitochondrial: false # default: false; regress out percentage mitochondrial gene expression
+regress-cell-cycle: false # default: false; regress out cell cycle scores
 # integrate.R
 batch: # default: orig.ident; name(s) of metadata field(s) to use for batch variable
   - orig.ident
