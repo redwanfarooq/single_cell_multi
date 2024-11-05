@@ -19,6 +19,7 @@ Arguments:
   --hdf5=<path[;path...]>                 Path(s) to 10x-formatted HDF5 files containing combined multimodal count matrices
   --metadata=<path[;path...]>             Path(s) to TSV files containing cell metadata
   --fragments=<path[;path...]>            Path(s) to ATAC fragments files (if applicable)
+  --summits=<path[;path...]>              Path(s) to ATAC peak summit BED files from MACS2 (if applicable)
 
                                           <path[;path...]> arguments must be
                                           EITHER semicolon-separated list of paths (1 per <sample>)
@@ -61,21 +62,30 @@ logger::log_info("Parsing command line arguments")
 params <- lapply(opt, function(x) if (is.character(x)) stringr::str_split_1(string = x, pattern = ";") else x)
 
 # Check parameters
-for (x in c("hdf5", "metadata", "fragments")) {
-  if (!is.null(params[[x]]) && length(params[[x]]) != length(params$samples)) {
-    if (length(params[[x]]) != 1) stop("Argument <", x, ">: number of paths must be equal to number of samples") # mismatch between number of paths and samples, if exactly 1 path provided assume it is a template string
-    if (!grepl(pattern = "\\{sample\\}", x = params[[x]])) stop("Argument <", x, ">: invalid path template string '", params[[x]], "'") # template string does not contain placeholder
+for (x in c("hdf5", "metadata", "fragments", "summits")) {
+  if (!is.null(params[[x]])) {
+    if (length(params[[x]]) == 1 && grepl(pattern = "\\{sample\\}", x = params[[x]])) params[[x]] <- glue::glue(params[[x]], sample = params$samples) # replace placeholder(s) if path provided is template string
+    if (length(params[[x]]) != length(params$samples)) stop("Argument <", x, ">: number of paths must be equal to number of samples or be a valid template string using '{sample}' as a placeholder for sample ID")
   }
-  params[[x]] <- glue::glue(params[[x]], sample = params$samples) # replace placeholder(s) if path provided is template string
 }
 if (!is.null(params$fragments)) {
+  names(params$fragments) <- params$samples
   missing.files <- vapply(params$fragments, function(x) !file.exists(x), logical(1))
   for (file in params$fragments[missing.files]) {
     warning("File not found: ", file)
   }
   params$fragments <- params$fragments[!missing.files]
 }
-if (params$exclude_control && is.null(params$control)) stop("Argument <control>: must be provided if running with '--exclude-control' option")
+if (!is.null(params$summits)) {
+  names(params$summits) <- params$samples
+  missing.files <- vapply(params$summits, function(x) !file.exists(x), logical(1))
+  for (file in params$summits[missing.files]) {
+    warning("File not found: ", file)
+  }
+  params$summits <- params$summits[!missing.files]
+}
+if (params$peak_method == "fixed" && is.null(params$summits)) stop("Argument <summits>: must be provided if running with '--peak-method=fixed'")
+if (params$exclude_control && is.null(params$control)) stop("Argument <control>: must be provided if running with '--exclude-control'")
 if (!grepl(pattern = "\\.qs$|\\.rds$", x = params$output, ignore.case = TRUE)) stop("Argument <output>: invalid file extension; must be either 'qs' or 'rds'")
 
 # Log options
@@ -103,11 +113,11 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(purrr)
   library(furrr)
-  library(DropletUtils)
   library(Seurat)
   library(Signac)
-  library(BPCells)
 })
+
+source("iterative_overlap_peak_merging.R")
 
 options(future.globals.maxSize = 1000000 * 1024^2, UCSC.goldenPath.url = "http://hgdownload.soe.ucsc.edu/goldenPath")
 furrr.options <- furrr_options(seed = 42, scheduling = FALSE)
@@ -161,21 +171,22 @@ mat <- future_map(
 # NOTE: this method leads to loss of features if Ensembl IDs do not map to a gene symbol in database
 #       an alternative approach would be to use the feature metadata in features.tsv.gz (from CellRanger/STARsolo output)
 logger::log_info("Cleaning up feature names")
+ensdb <- EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86
 res <- future_map(
   .x = mat$RNA,
-  .f = function(x, gene.types = params$gene_types) {
+  .f = function(x, gene.types = params$gene_types, db = ensdb) {
     df <- data.frame(rownames = rownames(x))
     df$ensembl_id <- sub(pattern = "[.][0-9]*", replacement = "", x = df$rownames)
     mapping <- ensembldb::select(
-      EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86,
+      db,
       keys = df$ensembl_id,
       keytype = "GENEID",
       columns = c("GENEID", "SYMBOL", "GENEBIOTYPE")
     ) %>%
-      rename(
-        GENEID = "ensembl_id",
-        SYMBOL = "gene_symbol",
-        GENEBIOTYPE = "gene_type"
+      dplyr::rename(
+        ensembl_id = GENEID,
+        gene_symbol = SYMBOL,
+        gene_type = GENEBIOTYPE
       )
     df <- left_join(df, mapping, by = "ensembl_id") %>% tibble::column_to_rownames("rownames")
     df <- df[rownames(x), ] %>%
@@ -218,25 +229,25 @@ if (!is.null(mat$ATAC)) {
     .l = list(
       x = mat$ATAC,
       sample = names(mat$ATAC),
-      path = params$fragments
+      path = params$fragments[names(mat$ATAC)]
     ),
     .f = function(x, sample, path) {
       if (!params$quiet) message("Getting fragments for ", sample)
       CreateFragmentObject(
         path = path,
         cells = colnames(x),
-        verbose = !params$quiet
+        verbose = FALSE
       )
     },
     .options = furrr.options
   ) %>%
     setNames(names(mat$ATAC))
   if (!is.null(params$peak_method) && length(mat$ATAC) > 1) {
-    # Combine peaks across samples
+    # Get joint peak set across samples
     logger::log_info("Finding and quantifying joint ATAC peak set")
-    params$peak_method <- params$peak_method %>% match.arg(choices = c("call", "disjoin", "reduce"))
-    if (params$peak_method == "call") {
-      # call peaks using MACS2
+    params$peak_method <- params$peak_method %>% match.arg(choices = c("bulk", "fixed", "disjoin", "reduce"))
+    if (params$peak_method == "bulk") {
+      # call bulk peaks from all fragments using MACS2
       if (!params$quiet) message("Calling joint peaks from ", length(params$fragments), " fragments files using MACS2")
       peaks <- CallPeaks(
         object = params$fragments,
@@ -244,10 +255,42 @@ if (!is.null(mat$ATAC)) {
         extsize = 200,
         shift = -100,
         additional.args = "--nolambda --max-gap 0 --keep-dup all",
+        cleanup = TRUE,
+        verbose = FALSE
+      )
+    } else if (params$peak_method == "fixed") {
+      # get fixed width peaks for each sample and combine using iterative overlap merging algorithm
+      # see Corces, M.R. et al. (2018). The chromatin accessibility landscape of primary human cancers. Science, 362, eaav1898.
+      genome <- GenomeInfoDb::Seqinfo(genome = "hg38") %>%
+        GenomicRanges::GRanges(seqnames = names(.), ranges = IRanges::IRanges(start = 1, end = seqlengths(.)), seqinfo = .) %>%
+        GenomeInfoDb::keepStandardChromosomes(pruning.mode = "coarse")
+      peaks <- future_map2(
+        .x = params$summits,
+        .y = names(params$summits),
+        .f = function(file, sample, valid.granges = genome) {
+          if (!params$quiet) message("Getting fixed width peaks for ", sample)
+          peaks <- readSummits(file) %>%
+            IRanges::resize(width = 501, fix = "center") %>%
+            IRanges::subsetByOverlaps(valid.granges, type = "within") %>% # remove peaks that extend past chromosome boundaries
+            convergeClusterGRanges(by = "score", decreasing = TRUE, verbose = FALSE) %>%
+            GenomeInfoDb::sortSeqlevels() %>%
+            sort()
+          S4Vectors::mcols(peaks)$score <- edgeR::cpm(S4Vectors::mcols(peaks)$score) # normalise peak scores
+          return(peaks)
+        },
+        .options = furrr.options
       ) %>%
-        GenomeInfoDb::keepStandardChromosomes(pruning.mode = "coarse") # remove peaks on non-standard chromosomes
+        unname()
+      if (!params$quiet) message("Performing iterative overlap peak merging")
+      peaks <- peaks %>%
+        GenomicRanges::GRangesList() %>%
+        unlist() %>%
+        convergeClusterGRanges(by = "score", decreasing = TRUE, verbose = FALSE) %>%
+        GenomeInfoDb::sortSeqlevels() %>%
+        sort()
+      peaks <- peaks[which(S4Vectors::mcols(peaks)$score > 2), ] # filter out peaks with low normalised scores (approximating FDR < 0.01)
     } else {
-      # extract genomic ranges of peaks from rownames and merge overlapping peaks across samples
+      # merge overlapping peaks across samples
       if (!params$quiet) message("Merging peaks across samples with method '", params$peak_method, "'")
       merge.function <- if (params$peak_method == "disjoin") GenomicRanges::disjoin else GenomicRanges::reduce
       peaks <- future_map(
@@ -256,20 +299,22 @@ if (!is.null(mat$ATAC)) {
           stringr::str_split(string = rownames(x), pattern = "[:-]", simplify = TRUE) %>%
             as.data.frame() %>%
             setNames(c("chr", "start", "stop")) %>%
-            GenomicRanges::makeGRangesFromDataFrame() %>%
-            GenomeInfoDb::keepStandardChromosomes(pruning.mode = "coarse") # remove peaks on non-standard chromosomes
+            GenomicRanges::makeGRangesFromDataFrame()
         },
         .options = furrr.options
       ) %>%
         Reduce(f = c, x = .) %>%
         merge.function()
     }
+    peaks <- peaks %>%
+      IRanges::subsetByOverlaps(blacklist_hg38_unified, invert = TRUE) %>% # exclude peaks overlapping genomic blacklist regions
+      GenomeInfoDb::keepStandardChromosomes(pruning.mode = "coarse") # remove peaks on non-standard chromosomes
     # count fragments in merged peaks
     mat$ATAC <- pmap(
       .l = list(
         x = mat$ATAC,
         sample = names(mat$ATAC),
-        fragments.object = fragments
+        fragments.object = fragments[names(mat$ATAC)]
       ),
       .f = function(x, sample, fragments.object, joint.peaks = peaks) {
         if (!params$quiet) message("Counting fragments in joint peaks for ", sample)
@@ -292,7 +337,7 @@ if (params$downsample && length(params$samples) > 1) {
     .f = function(x, type) {
       set.seed(42)
       logger::log_info("Downsampling {type} counts to match sequencing depth across {length(x)} libraries")
-      x <- as.list(downsampleBatches(x))
+      x <- as.list(DropletUtils::downsampleBatches(x))
       return(x)
     }
   )
@@ -318,15 +363,15 @@ seu <- future_pmap(
     cell.metadata = cell.metadata,
     gene.metadata = gene.metadata
   ),
-  function(x, sample, cell.metadata, gene.metadata, fragment.objects = eval(if (exists("fragments")) fragments else NULL)) {
+  function(x, sample, cell.metadata, gene.metadata, fragments.objects = eval(if (exists("fragments")) fragments else NULL)) {
     obj <- CreateSeuratObject(counts = x$RNA, assay = "RNA", project = sample, meta.data = cell.metadata)
     obj[["RNA"]] <- AddMetaData(object = obj[["RNA"]], metadata = gene.metadata)
     if (!is.null(x$ATAC)) {
-      if (is.null(fragment.objects[[sample]])) stop("Missing fragments file for ", sample)
+      if (is.null(fragments.objects[[sample]])) stop("Missing fragments file for ", sample)
       obj[["ATAC"]] <- CreateChromatinAssay(
         counts = x$ATAC,
         sep = c(":", "-"),
-        fragments = fragment.objects[[sample]]
+        fragments = fragments.objects[[sample]]
       )
     }
     if (!is.null(x$ADT)) obj[["ADT"]] <- CreateAssay5Object(counts = x$ADT)

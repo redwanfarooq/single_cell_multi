@@ -30,18 +30,17 @@
 #       - Optional: regress out percentage mitochondrial
 #         gene expression and/or cell cycle scores during
 #         normalisation
-#       - Seurat latent semantic indexing for ATAC data
+#       - Seurat term frequency-inverse document frequency
+#         for ATAC data
 #       - Centred log ratio transformation for ADT data
 #      4. Find variable features
-#       - Seurat variance stabilising transformation for
-#         RNA data
-#       - Top 95th percentile of variance for ATAC data
-#       - All features for ADT data
+#       - Seurat/SCTransform variance stabilising
+#         transformation for RNA data
+#       - All features for ATAC and ADT data
 #       - Optional: filter out selected features from
 #         variable feature set for RNA and ATAC
 #         data
-#     5. Compute uncorrected PCA using
-#        batchelor::multiBatchPCA
+#     5. Compute uncorrected PCA/LSI
 #     6. Integration
 #       - Integrate multimodal data using Seurat v5
 #         integration methods (RPCA, JPCA, CCA, fastMNN,
@@ -81,6 +80,7 @@ output_dir: /project/fuggerlab/rfarooq/project/project_name/data/processed
 #   hdf5: path to 10x-formatted HDF5 file containing combined multimodal count matrices
 #   metadata: path to TSV files containing cell metadata
 #   fragments: path to to ATAC fragments file (if applicable)
+#   summits: path to ATAC peak summits BED file from MACS2 (if applicable)
 input: files.tsv
 
 
