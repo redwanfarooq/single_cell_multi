@@ -17,8 +17,17 @@
 #       - Get gene symbols from Ensembl IDs for RNA
 #         data
 #       - Remove isotype control tags for ADT data
-#       - Merge ATAC peak set by union of overlapping
-#         peaks and requantify reads in merged peaks
+#       - Find and quantify joint ATAC peak set across samples
+#           - bulk: call peaks using MACS2 on combined
+#             fragments files from all samples
+#           - fixed: use 501-bp fixed width peaks from
+#             MACS2 peak summits BED file per sample and
+#             merge using iterative overlap merging
+#             algorithm (Corces, M.R. et al. 2018)
+#           - disjoin: merge overlapping peaks from each
+#             sample using GenomicRanges::disjoin
+#           - reduce: merge overlapping peaks from each
+#             sample using GenomicRanges::reduce
 #       - Optional: Downsample counts to match
 #         sequencing depth across libraries
 #       - Optional: Binarize ATAC counts
