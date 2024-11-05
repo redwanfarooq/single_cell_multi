@@ -32,7 +32,7 @@ Arguments:
   --atac-assay=<assay>                    ATAC assay name [default: ATAC]
   --adt-assay=<assay>                     ADT assay name [default: ADT]
   --gene-types=<type[;type]...>           Semicolon-separated list of Ensembl gene biotypes to keep [default: protein_coding;lincRNA;IG_C_gene;TR_C_gene]
-  --peak-method=<method>                  Method to select joint ATAC peaks across samples ('call', 'disjoin' or 'reduce')
+  --peak-method=<method>                  Method to select joint ATAC peaks across samples ('bulk', 'fixed', 'disjoin' or 'reduce')
   --control=<name>                        Name of control sample (cross-batch technical replicate)
 
 

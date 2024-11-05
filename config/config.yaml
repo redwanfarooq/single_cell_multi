@@ -99,7 +99,7 @@ gene-types: # default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl ge
   - lincRNA
   - IG_C_gene
   - TR_C_gene
-peak-method: null # default: null; options: call, disjoin, reduce; method to select joint ATAC peaks across samples
+peak-method: null # default: null; options: bulk, fixed, disjoin, reduce; method to select joint ATAC peaks across samples
 control: null # default: null; name of control sample (cross-batch technical replicate)
 binarize: false # default: false; binarize ATAC counts
 downsample: false # default: false; downsample counts to match sequencing depth across libraries
