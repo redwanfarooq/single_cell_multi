@@ -272,23 +272,21 @@ if (!is.null(mat$ATAC)) {
           peaks <- readSummits(file) %>%
             IRanges::resize(width = 501, fix = "center") %>%
             IRanges::subsetByOverlaps(valid.granges, type = "within") %>% # remove peaks that extend past chromosome boundaries
-            convergeClusterGRanges(by = "score", decreasing = TRUE, verbose = FALSE) %>%
+            nonOverlappingGRanges(by = "score", decreasing = TRUE, verbose = FALSE) %>%
             GenomeInfoDb::sortSeqlevels() %>%
             sort()
-          S4Vectors::mcols(peaks)$score <- edgeR::cpm(S4Vectors::mcols(peaks)$score) # normalise peak scores
+          S4Vectors::mcols(peaks)$score <- round(getQuantiles(S4Vectors::mcols(peaks)$score), 3) # normalise peak scores
           return(peaks)
         },
         .options = furrr.options
       ) %>%
         unname()
-      if (!params$quiet) message("Performing iterative overlap peak merging")
       peaks <- peaks %>%
         GenomicRanges::GRangesList() %>%
         unlist() %>%
-        convergeClusterGRanges(by = "score", decreasing = TRUE, verbose = FALSE) %>%
+        nonOverlappingGRanges(by = "score", decreasing = TRUE, verbose = TRUE) %>%
         GenomeInfoDb::sortSeqlevels() %>%
         sort()
-      peaks <- peaks[which(S4Vectors::mcols(peaks)$score > 2), ] # filter out peaks with low normalised scores (approximating FDR < 0.01)
     } else {
       # merge overlapping peaks across samples
       if (!params$quiet) message("Merging peaks across samples with method '", params$peak_method, "'")
