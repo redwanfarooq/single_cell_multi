@@ -18,6 +18,29 @@ def parse_info(info: dict) -> dict:
     return {"samples": samples}
 
 
+def str_to_bool(val: str) -> bool:
+    """
+    Convert a string representation of True/False to boolean.
+
+    Valid true values: 'y', 'yes', 't', 'true', 'on', and '1'
+    Valid false values: 'n', 'no', 'f', 'false', 'off', and '0'.
+    Matching is case-insensitive.
+
+    Arguments:
+        ``val``: string to convert to boolean.
+
+    Returns:
+        Boolean value of input string.
+    """
+    match str(val).lower():
+        case "y" | "yes" | "t" | "true" | "on" | "1":
+            return True
+        case "n" | "no" | "f" | "false" | "off" | "0":
+            return False
+        case _:
+            raise ValueError(f"Unable to infer truth value for {val!r}")
+
+
 def get_optional_flags(**kwargs) -> str:
     """
     Get optional flags for a command line script.
