@@ -60,7 +60,7 @@
 #       - Compute corrected values for ADT data by
 #         projecting integrated embeddings back into
 #         normalised count space
-module: 
+module: default
 
 
 # --------------------------------------------------
@@ -68,7 +68,7 @@ module:
 # --------------------------------------------------
 # REQUIRED
 # Output directories
-output_dir: /project/fuggerlab/rfarooq/project/project_name/data/processed/multi
+output_dir: /project/fuggerlab/rfarooq/project/ms_snp_multiome/data/processed/multi
 
 # If 'scripts_dir' not specified, defaults to
 # 'resources/scripts'
@@ -104,7 +104,7 @@ input: files.tsv
 format: qs # default: qs; options: qs, rds
 rna-assay: RNA # default: RNA; RNA assay name
 atac-assay: ATAC # default: ATAC; ATAC assay name
-adt-assay: ADT # default: ADT; ADT assay name
+# adt-assay: ADT # default: ADT; ADT assay name
 # merge.R
 gene-types: # * default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl gene biotypes to keep
   - protein_coding
@@ -112,7 +112,7 @@ gene-types: # * default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl 
   - IG_C_gene
   - TR_C_gene
 peak-method: # ** default: null; options: bulk, fixed, disjoin, reduce; method to select joint ATAC peaks across samples
-  null
+  reduce
 binarize: # ** default: false; binarize ATAC counts
   false
 downsample: # ** default: false; downsample counts to match sequencing depth across libraries
@@ -122,12 +122,12 @@ exclude-control: false # default: false; exclude control sample (cross-batch tec
 # normalise.R
 n-features: # ** default: 3000; maximum number of variable features to select
   3000
-clr: # ** default: seurat; options: seurat, original; centred-log ratio (CLR) transformation method for ADT data
-  seurat
+# clr: # ** default: seurat; options: seurat, original; centred-log ratio (CLR) transformation method for ADT data
+#   seurat
 regress-percent-mitochondrial: # ** default: false; regress out percentage mitochondrial gene expression
-  false
+  true
 regress-cell-cycle: # ** default: false; regress out cell cycle scores
-  false
+  true
 exp: orig.ident # default: orig.ident; name of metadata field specifying original experiment
 rna-filter-features: ^MT-|^RP[SL] # default: ^MT-|^RP[SL]; regular expression pattern to filter RNA variable features (matching features will be removed)
 atac-filter-features: ^chrM|^chrY # default: ^chrM|^chrY; regular expression pattern to filter ATAC variable features (matching features will be removed)
