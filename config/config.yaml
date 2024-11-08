@@ -68,7 +68,7 @@ module: default
 # --------------------------------------------------
 # REQUIRED
 # Output directories
-output_dir: /project/fuggerlab/rfarooq/project/ms_snp_multiome/data/processed/multi
+output_dir: /project/fuggerlab/rfarooq/project/ms_snp_multiome/data/processed/gex_atac/test_02/multi
 
 # If 'scripts_dir' not specified, defaults to
 # 'resources/scripts'
