@@ -12,7 +12,7 @@ scripts_dir = config.get("scripts_dir", "resources/scripts")
 rule normalise:
 	input: os.path.join(config["output_dir"], "{prefix}", f"merged.{config.get('format', 'qs')}"),
 	output: os.path.join(config["output_dir"], "{prefix}", "n-features:{n_features}_clr:{clr}_M:{regress_percent_mitochondrial}_C:{regress_cell_cycle}", f"normalised.{config.get('format', 'qs')}"), 
-	log: os.path.abspath(os.path.join("logs", "{prefix}", "n-features:{n_features}_clr:{clr}_M:{regress_percent_mitochondrial}_C:{regress_cell_cycle}", "normalise.log"))
+	log: os.path.abspath("logs/{prefix}/n-features:{n_features}_clr:{clr}_M:{regress_percent_mitochondrial}_C:{regress_cell_cycle}/normalise.log")
 	threads: min(floor(len(samples) / 5) + 1, 4)
 	resources:
 		mem = lambda wildcards, threads: f"{threads * 100}GiB"

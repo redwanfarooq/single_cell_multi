@@ -11,7 +11,7 @@ scripts_dir = config.get("scripts_dir", "resources/scripts")
 rule integrate:
 	input: os.path.join(config["output_dir"], "{prefix}", f"normalised.{config.get('format', 'qs')}"),
 	output: os.path.join(config["output_dir"], "{prefix}", "batch:{batch}_normalisation:{normalisation_method}_integration:{integration_method}", f"integrated.{config.get('format', 'qs')}"), 
-	log: os.path.abspath(os.path.join("logs", "{prefix}", "batch:{batch}_normalisation:{normalisation_method}_integration:{integration_method}", "integrate.log"))
+	log: os.path.abspath("logs/{prefix}/batch:{batch}_normalisation:{normalisation_method}_integration:{integration_method}/integrate.log")
 	threads: min(floor(len(samples) / 5) + 1, 4)
 	resources:
 		mem = lambda wildcards, threads: f"{threads * 100}GiB"

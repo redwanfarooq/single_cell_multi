@@ -9,7 +9,7 @@ scripts_dir = config.get("scripts_dir", "resources/scripts")
 # Define rule
 rule merge:
 	output: os.path.join(config["output_dir"], "peak-method:{peak_method}_b:{binarize}_d:{downsample}", f"merged.{config.get('format', 'qs')}"), 
-	log: os.path.abspath(os.path.join("logs", "peak-method:{peak_method}_b:{binarize}_d:{downsample}", "merge.log"))
+	log: os.path.abspath("logs/peak-method:{peak_method}_b:{binarize}_d:{downsample}/merge.log")
 	threads: min(floor(len(samples) / 5) + 1, 4)
 	resources:
 		mem = lambda wildcards, threads: f"{threads * 25}GiB"
