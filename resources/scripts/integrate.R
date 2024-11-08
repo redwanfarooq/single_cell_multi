@@ -81,7 +81,6 @@ suppressPackageStartupMessages({
   library(Seurat)
   library(SeuratWrappers)
   library(Signac)
-  library(BPCells)
 })
 
 source("integration_functions.R")
@@ -130,25 +129,7 @@ for (x in Assays(seu)) {
 logger::log_info("Performing PCA for RNA data")
 params$normalisation_method <- params$normalisation_method %>% match.arg(choices = c("LogNormalize", "SCT"))
 assay <- if (params$normalisation_method == "SCT") "SCT" else params$rna_assay
-set.seed(42)
-if (!params$quiet) message("Running multi-batch PCA")
-pca <- batchelor::multiBatchPCA(
-  eval({
-    if (assay == "SCT") Seurat:::PrepDR(object = seu[[assay]], verbose = FALSE) else Seurat:::PrepDR5(object = seu[[assay]], verbose = FALSE)
-  }),
-  batch = seu$batch,
-  get.variance = TRUE,
-  preserve.single = TRUE,
-  BPPARAM = BiocParallel::MulticoreParam(workers = as.integer(params$threads))
-)
-seu[["pca"]] <- CreateDimReducObject(
-  embeddings = pca[[1]],
-  loadings = S4Vectors::metadata(pca)$rotation,
-  stdev = sqrt(S4Vectors::metadata(pca)$var.explained),
-  assay = assay,
-  key = "PC_"
-) %>%
-  suppressWarnings() # suppress unhelpful warnings
+seu <- RunPCA(object = seu, assay = assay, reduction.name = "pca", reduction.key = "PC_", verbose = FALSE)
 if (!is.null(params$integration_method)) {
   logger::log_info("Integrating RNA data across {length(unique(seu$batch))} batches")
   args <- list(
@@ -169,25 +150,9 @@ if (!is.null(params$integration_method)) {
 
 # ATAC data
 if (params$atac_assay %in% Assays(seu)) {
-  logger::log_info("Performing PCA for ATAC data")
+  logger::log_info("Performing LSI for ATAC data")
   assay <- params$atac_assay
-  set.seed(42)
-  if (!params$quiet) message("Running multi-batch PCA")
-  lsi <- batchelor::multiBatchPCA(
-    Seurat:::PrepDR(object = seu[[assay]], slot = "data", verbose = FALSE),
-    batch = seu$batch,
-    get.variance = TRUE,
-    preserve.single = TRUE,
-    BPPARAM = BiocParallel::MulticoreParam(workers = as.integer(params$threads))
-  )
-  seu[["lsi"]] <- CreateDimReducObject(
-    embeddings = lsi[[1]],
-    loadings = S4Vectors::metadata(lsi)$rotation,
-    stdev = sqrt(S4Vectors::metadata(lsi)$var.explained),
-    assay = assay,
-    key = "LSI_"
-  ) %>%
-    suppressWarnings() # suppress unhelpful warnings
+  seu <- RunSVD(object = seu, assay = assay, reduction.name = "lsi", reduction.key = "LSI_", verbose = FALSE)
   if (!is.null(params$integration_method)) {
     logger::log_info("Integrating ATAC data across {length(unique(seu$batch))} batches")
     # Temporarily switch ATAC assay from ChromatinAssay to Assay v5 to enable use of IntegrateLayers
@@ -195,7 +160,7 @@ if (params$atac_assay %in% Assays(seu)) {
       tmp <- seu[[assay]]
       seu[[assay]] <- CreateAssay5Object(data = GetAssayData(object = seu[[assay]], slot = "data")) %>%
         split(f = seu$batch)
-      LayerData(object = seu, assay = assay, layer = "scale.data") <- SparseEmptyMatrix(nrow = nrow(seu[[assay]]), ncol = ncol(seu[[assay]]), rownames = rownames(seu[[assay]]), colnames = colnames(seu[[assay]]))
+      LayerData(object = seu, assay = assay, layer = "scale.data") <- SparseEmptyMatrix(nrow = nrow(tmp), ncol = ncol(tmp), rownames = rownames(tmp), colnames = colnames(tmp))
     }) # suppress unhelpful warnings
     args <- list(
       object = "seu",
@@ -204,7 +169,7 @@ if (params$atac_assay %in% Assays(seu)) {
       orig.reduction = "'lsi'",
       new.reduction = "'integrated.atac'",
       features = "VariableFeatures(object = tmp)",
-      dims = "1:50",
+      dims = "2:50",
       verbose = "!params$quiet"
     ) %>%
       paste(names(.), ., sep = " = ", collapse = ", ") %>%
@@ -220,24 +185,7 @@ if (params$atac_assay %in% Assays(seu)) {
 if (params$adt_assay %in% Assays(seu)) {
   logger::log_info("Performing PCA for ADT data")
   assay <- params$adt_assay
-  set.seed(42)
-  if (!params$quiet) message("Running multi-batch PCA")
-  apca <- batchelor::multiBatchPCA(
-    Seurat:::PrepDR5(object = seu[[assay]], verbose = FALSE),
-    batch = seu$batch,
-    get.variance = TRUE,
-    preserve.single = TRUE,
-    BPPARAM = BiocParallel::MulticoreParam(workers = as.integer(params$threads)),
-    BSPARAM = BiocSingular::ExactParam() # compute exact SVD for ADT assay due to low number of features
-  )
-  seu[["apca"]] <- CreateDimReducObject(
-    embeddings = apca[[1]],
-    loadings = S4Vectors::metadata(apca)$rotation,
-    stdev = sqrt(S4Vectors::metadata(apca)$var.explained),
-    assay = assay,
-    key = "APC_"
-  ) %>%
-    suppressWarnings() # suppress unhelpful warnings
+  seu <- RunPCA(object = seu, assay = assay, reduction.name = "apca", reduction.key = "APC_", approx = FALSE, verbose = FALSE)
   if (!is.null(params$integration_method)) {
     logger::log_info("Integrating ADT data across {length(unique(seu$batch))} batches")
     args <- list(

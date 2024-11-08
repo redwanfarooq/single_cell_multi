@@ -75,6 +75,7 @@ Pipeline requires the following input files/folders:
 - **hdf5**: path to 10x-formatted HDF5 file
 - **metadata**: path to cell barcode metadata table
 - **fragments**: path to 10x-formatted indexed fragments file (if applicable)
+- **summits**: path to MACS2 peak summits BED file (if applicable)
 
 # Output
 Output directory will be created in specified locations with subfolders containing the output of each step specified in the module

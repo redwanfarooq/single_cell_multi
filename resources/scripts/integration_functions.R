@@ -107,26 +107,25 @@ attr(x = FastMNNIntegration, which = "Seurat.method") <- "integration"
 
 # Customised ChromatinAssay-specific wrapper functions for integration methods
 RLSIIntegration <- function(
-  object = NULL,
-  assay = NULL,
-  layers = NULL,
-  orig = NULL,
-  new.reduction = "integrated.dr",
-  reference = NULL,
-  features = NULL,
-  normalization.method = "LogNormalize",
-  dims = 1:30,
-  k.filter = NA,
-  scale.layer = NULL,
-  dims.to.integrate = NULL,
-  k.weight = 100,
-  weight.reduction = NULL,
-  sd.weight = 1,
-  sample.tree = NULL,
-  preserve.order = FALSE,
-  verbose = TRUE,
-  ...
-) {
+    object = NULL,
+    assay = NULL,
+    layers = NULL,
+    orig = NULL,
+    new.reduction = "integrated.dr",
+    reference = NULL,
+    features = NULL,
+    normalization.method = "LogNormalize",
+    dims = 2:30,
+    k.filter = NA,
+    scale.layer = NULL,
+    dims.to.integrate = NULL,
+    k.weight = 100,
+    weight.reduction = NULL,
+    sd.weight = 1,
+    sample.tree = NULL,
+    preserve.order = FALSE,
+    verbose = TRUE,
+    ...) {
   rlang::check_installed(
     pkg = "Signac",
     reason = "for running integration with RLSIIntegration"
@@ -144,7 +143,7 @@ RLSIIntegration <- function(
       return(ncell)
     }
   )
-  if (min(ncells) < max(dims))  {
+  if (min(ncells) < max(dims)) {
     abort(message = "At least one layer has fewer cells than dimensions specified, please lower 'dims' accordingly.")
   }
   object.list <- list()
@@ -193,6 +192,75 @@ RLSIIntegration <- function(
 attr(x = RLSIIntegration, which = "Seurat.method") <- "integration"
 
 
+JointLSIIntegration <- function(
+    object = NULL,
+    assay = NULL,
+    layers = NULL,
+    orig = NULL,
+    new.reduction = "integrated.dr",
+    reference = NULL,
+    features = NULL,
+    normalization.method = "LogNormalize",
+    dims = 2:30,
+    k.anchor = 20,
+    scale.layer = "scale.data",
+    dims.to.integrate = NULL,
+    k.weight = 100,
+    weight.reduction = NULL,
+    sd.weight = 1,
+    sample.tree = NULL,
+    preserve.order = FALSE,
+    verbose = TRUE,
+    ...) {
+  op <- options(Seurat.object.assay.version = "v3", Seurat.object.assay.calcn = FALSE)
+  on.exit(expr = options(op), add = TRUE)
+  features <- features %||% Seurat::SelectIntegrationFeatures5(object = object)
+  features.diet <- features[1:2]
+  assay <- assay %||% SeuratObject::DefaultAssay(object = object)
+  layers <- layers %||% SeuratObject::Layers(object = object, search = "data")
+  object.list <- list()
+  for (i in seq_along(along.with = layers)) {
+    object.list[[i]] <- CreateSeuratObject(counts = object[layers[i]][features.diet, ])
+    object.list[[i]][["RNA"]]$counts <- NULL
+    object.list[[i]][["joint.pca"]] <- CreateDimReducObject(
+      embeddings = Embeddings(object = orig)[Cells(object.list[[i]]), ],
+      assay = "RNA",
+      loadings = Loadings(orig),
+      key = "J_"
+    )
+  }
+  anchor <- FindIntegrationAnchors(
+    object.list = object.list,
+    anchor.features = features.diet,
+    scale = FALSE,
+    reduction = "jpca",
+    normalization.method = normalization.method,
+    dims = dims,
+    k.anchor = k.anchor,
+    k.filter = NA,
+    reference = reference,
+    verbose = verbose,
+    ...
+  )
+  object_merged <- IntegrateEmbeddings(
+    anchorset = anchor,
+    reductions = orig,
+    new.reduction.name = new.reduction,
+    dims.to.integrate = dims.to.integrate,
+    k.weight = k.weight,
+    weight.reduction = weight.reduction,
+    sd.weight = sd.weight,
+    sample.tree = sample.tree,
+    preserve.order = preserve.order,
+    verbose = verbose
+  )
+  output.list <- list(object_merged[[new.reduction]])
+  names(output.list) <- c(new.reduction)
+  return(output.list)
+}
+attr(x = JointLSIIntegration, which = "Seurat.method") <- "integration"
+
+
 # Function to build sample tree matrix for hierarchical integration using Seurat anchor-based methods
 build.sample.tree <- function(groups, init = 0, subtree = FALSE) {
   if (!is.list(groups)) stop("Argument <groups>: must be a list")
@@ -219,7 +287,7 @@ build.sample.tree <- function(groups, init = 0, subtree = FALSE) {
       attr(sample.trees[[i]], "subtree") <- FALSE
     }
   }
-  
+
   # Build merge tree matrix across groups
   breaks <- vector(mode = "integer", length = length(groups))
   for (i in seq_along(sample.trees)) {

@@ -25,7 +25,7 @@ Arguments:
   --adt-assay=<assay>                     ADT assay name [default: ADT]
   --n-features=<int>                      Maximum number of variable features to select [default: 3000]
   --rna-filter-features=<pattern>         Regular expression pattern to filter RNA variable features (matching features will be removed) [default: ^MT-|^RP[SL]]
-  --atac-filter-features=<pattern>        Regular expression pattern to filter ATAC variable features (matching features will be removed) [default: ^chrM]
+  --atac-filter-features=<pattern>        Regular expression pattern to filter ATAC variable features (matching features will be removed) [default: ^chrM|^chrY]
   --clr=<method>                          Centred-log ratio (CLR) transformation method for ADT data ('seurat', 'original') [default: seurat]
 
 
@@ -83,7 +83,6 @@ suppressPackageStartupMessages({
   library(furrr)
   library(Seurat)
   library(Signac)
-  library(BPCells)
 })
 
 options(future.globals.maxSize = 1000000 * 1024^2)
@@ -117,13 +116,15 @@ assay <- params$rna_assay
 vars.to.regress <- NULL
 if (params$regress_percent_mitochondrial) vars.to.regress <- c(vars.to.regress, "pctMito_RNA")
 if (params$regress_cell_cycle) vars.to.regress <- c(vars.to.regress, "S.Score", "G2M.Score")
-seu <- seu %>%
-  NormalizeData(assay = assay, normalization.method = "LogNormalize", verbose = !params$quiet) %>%
-  PercentageFeatureSet(pattern = "^MT-", col.name = "pctMito_RNA") %>%
-  CellCycleScoring(s.features = cc.genes$s.genes, g2m.features = cc.genes$g2m.genes, search = TRUE, verbose = !params$quiet) %>%
-  split(f = seu[[params$exp, drop = TRUE]], assay = assay, layers = c("counts", "data")) %>%
-  FindVariableFeatures(assay = assay, nfeatures = as.integer(params$n_features), selection.method = "vst", verbose = !params$quiet) %>%
-  ScaleData(assay = assay, vars.to.regress = vars.to.regress, verbose = !params$quiet)
+suppressWarnings({
+  seu <- seu %>%
+    NormalizeData(assay = assay, normalization.method = "LogNormalize", verbose = !params$quiet) %>%
+    PercentageFeatureSet(pattern = "^MT-", col.name = "pctMito_RNA") %>%
+    CellCycleScoring(s.features = cc.genes$s.genes, g2m.features = cc.genes$g2m.genes, search = TRUE, verbose = !params$quiet) %>%
+    split(f = seu[[params$exp, drop = TRUE]], assay = assay, layers = c("counts", "data")) %>%
+    FindVariableFeatures(assay = assay, nfeatures = as.integer(params$n_features), selection.method = "vst", verbose = !params$quiet) %>%
+    ScaleData(assay = assay, vars.to.regress = vars.to.regress, verbose = !params$quiet)
+}) # suppress unhelpful warnings
 min.depth <- map_dbl(
   .x = Layers(object = seu, assay = assay, search = "counts"),
   .f = function(x, obj = seu) median(colSums(LayerData(object = obj, assay = assay, layer = x)))
@@ -152,7 +153,7 @@ seu <- seu %>%
   ) # set NaN values in corrected counts matrix to 0 (from genes with zero counts in all cells in a batch)
 seu[["SCT"]] <- AddMetaData(seu[["SCT"]], seu[[assay]][[c("ensembl_id", "gene_symbol", "gene_type")]])
 for (x in c(assay, "SCT")) {
-  VariableFeatures(seu, assay = x) <- grep(pattern = params$rna_filter_features, x = VariableFeatures(seu, assay = x), value = TRUE, invert = TRUE)
+  VariableFeatures(seu, assay = x) <- grep(pattern = params$rna_filter_features, x = VariableFeatures(seu, assay = x), value = TRUE, invert = TRUE) # remove unwanted features
 }
 
 # Normalise ATAC data
@@ -172,8 +173,6 @@ if (params$atac_assay %in% Assays(seu)) {
       .f = function(obj, name) {
         if (!params$quiet) message("Normalizing layer: counts.", name)
         obj <- RunTFIDF(object = obj, assay = assay, verbose = !params$quiet) %>% suppressWarnings() # suppress unhelpful warnings
-        if (!params$quiet) message("Finding top features for layer counts.", name)
-        obj <- FindTopFeatures(object = obj, assay = assay, verbose = !params$quiet)
         return(obj)
       },
       .options = furrr.options
@@ -183,9 +182,7 @@ if (params$atac_assay %in% Assays(seu)) {
     assay = assay,
     layer = "data"
   )
-  VariableFeatures(seu, assay = assay) <- map(.x = object.list, .f = VariableFeatures) %>%
-    Reduce(f = intersect, x = ., init = Features(seu[[assay]])) %>%
-    grep(pattern = params$atac_filter_features, x = ., value = TRUE, invert = TRUE)
+  VariableFeatures(seu, assay = assay) <- grep(pattern = params$atac_filter_features, x = Features(seu[[assay]]), value = TRUE, invert = TRUE) # use all features (except unwanted features) as variable features
   DefaultAssay(seu) <- default
 }
 

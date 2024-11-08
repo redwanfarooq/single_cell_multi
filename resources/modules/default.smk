@@ -10,6 +10,7 @@
 # Load modules
 import os
 import yaml
+import itertools
 from math import floor
 from resources.scripts.rule import *
 

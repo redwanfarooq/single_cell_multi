@@ -9,24 +9,26 @@ scripts_dir = config.get("scripts_dir", "resources/scripts")
 
 # Define rule
 rule integrate:
-	input: normalise,
-	output: os.path.join(config["output_dir"], "integrate", f"{{integrate}}.{config.get('format', 'qs')}"), 
-	log: os.path.abspath("logs/integrate/{integrate}.log")
+	input: os.path.join(config["output_dir"], "{prefix}", f"normalised.{config.get('format', 'qs')}"),
+	output: os.path.join(config["output_dir"], "{prefix}", "batch:{batch}_normalisation:{normalisation_method}_integration:{integration_method}", f"integrated.{config.get('format', 'qs')}"), 
+	log: os.path.abspath("logs/{prefix}/batch:{batch}_normalisation:{normalisation_method}_integration:{integration_method}/integrate.log")
 	threads: min(floor(len(samples) / 5) + 1, 4)
 	resources:
 		mem = lambda wildcards, threads: f"{threads * 100}GiB"
 	params:
 		script_path = scripts_dir if os.path.isabs(scripts_dir) else os.path.join(workflow.basedir, scripts_dir),
-		optional_flags = get_optional_flags(rna_assay = config.get("rna-assay", None), atac_assay = config.get("atac-assay", None), adt_assay = config.get("adt-assay", None), batch=";".join(config.get("batch", list())), normalisation_method=config.get("normalisation-method", None), integration_method=parse_integration_method(config.get("integration-method", None)), integration_args=config.get("integration-args", None)),
+		wildcard_flags = lambda wildcards: get_optional_flags(batch=";".join(wildcards.batch.split("+")), normalisation_method=wildcards.normalisation_method, integration_method=parse_integration_method(wildcards.integration_method) if wildcards.integration_method != "None" else None, integration_args=config.get("integration-args", {wildcards.integration_method: None}).get(wildcards.integration_method, None)),
+		other_flags = get_optional_flags(rna_assay = config.get("rna-assay", None), atac_assay = config.get("atac-assay", None), adt_assay = config.get("adt-assay", None)),
 	conda: "single_cell_multi"
 	# envmodules: "R-cbrg"
-	message: "Integrating data"
+	message: "Performing dimensionality reduction and integrating data"
 	shell:
 		"""
 		cd {params.script_path} && \
 		./integrate.R \
 			--input {input} \
-			{params.optional_flags} \
+			{params.wildcard_flags} \
+			{params.other_flags} \
 			--output {output} \
 			--threads {threads} \
 			--log {log}
@@ -34,4 +36,4 @@ rule integrate:
 
 	
 # Set rule targets
-integrate = expand(os.path.join(config["output_dir"], "integrate", f"batch:{{batch}}_normalisation:{{normalisation_method}}_integration:{{integration_method}}.{config.get('format', 'qs')}"), batch="+".join(config.get("batch", ["orig.ident"])), normalisation_method=config.get("normalisation-method", "LogNormalize"), integration_method=config.get("integration-method", "None"))
+integrate = expand(os.path.join(config["output_dir"], "{prefix}", "batch:{batch}_normalisation:{normalisation_method}_integration:{integration_method}", f"integrated.{config.get('format', 'qs')}"), prefix=[os.path.join(os.path.basename(os.path.dirname(merged)), os.path.basename(os.path.dirname(normalised))) for merged, normalised in itertools.product(merge, normalise)], batch="+".join(config.get("batch", ["orig.ident"])), normalisation_method=config.get("normalisation-method", "LogNormalize"), integration_method=config.get("integration-method", None))

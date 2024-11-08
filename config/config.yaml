@@ -17,8 +17,17 @@
 #       - Get gene symbols from Ensembl IDs for RNA
 #         data
 #       - Remove isotype control tags for ADT data
-#       - Merge ATAC peak set by union of overlapping
-#         peaks and requantify reads in merged peaks
+#       - Find and quantify joint ATAC peak set across samples
+#           - bulk: call peaks using MACS2 on combined
+#             fragments files from all samples
+#           - fixed: use 501-bp fixed width peaks from
+#             MACS2 peak summits BED file per sample and
+#             merge using iterative overlap merging
+#             algorithm (Corces, M.R. et al. 2018)
+#           - disjoin: merge overlapping peaks from each
+#             sample using GenomicRanges::disjoin
+#           - reduce: merge overlapping peaks from each
+#             sample using GenomicRanges::reduce
 #       - Optional: Downsample counts to match
 #         sequencing depth across libraries
 #       - Optional: Binarize ATAC counts
@@ -30,18 +39,17 @@
 #       - Optional: regress out percentage mitochondrial
 #         gene expression and/or cell cycle scores during
 #         normalisation
-#       - Seurat latent semantic indexing for ATAC data
+#       - Seurat term frequency-inverse document frequency
+#         for ATAC data
 #       - Centred log ratio transformation for ADT data
 #      4. Find variable features
-#       - Seurat variance stabilising transformation for
-#         RNA data
-#       - Top 95th percentile of variance for ATAC data
-#       - All features for ADT data
+#       - Seurat/SCTransform variance stabilising
+#         transformation for RNA data
+#       - All features for ATAC and ADT data
 #       - Optional: filter out selected features from
 #         variable feature set for RNA and ATAC
 #         data
-#     5. Compute uncorrected PCA using
-#        batchelor::multiBatchPCA
+#     5. Compute uncorrected PCA/LSI
 #     6. Integration
 #       - Integrate multimodal data using Seurat v5
 #         integration methods (RPCA, JPCA, CCA, fastMNN,
@@ -60,7 +68,7 @@ module: default
 # --------------------------------------------------
 # REQUIRED
 # Output directories
-output_dir: /project/fuggerlab/rfarooq/project/ocrelizumab_multiome/data/processed/cite_seq/cohort_treatment_naive/cellbender
+output_dir: /project/fuggerlab/rfarooq/project/ocrelizumab_multiome/data/processed/cite_seq/cohort_treatment_naive/cellbender/multi
 
 # If 'scripts_dir' not specified, defaults to
 # 'resources/scripts'
@@ -81,6 +89,7 @@ output_dir: /project/fuggerlab/rfarooq/project/ocrelizumab_multiome/data/process
 #   hdf5: path to 10x-formatted HDF5 file containing combined multimodal count matrices
 #   metadata: path to TSV files containing cell metadata
 #   fragments: path to to ATAC fragments file (if applicable)
+#   summits: path to ATAC peak summits BED file from MACS2 (if applicable)
 input: files.tsv
 
 
@@ -88,13 +97,16 @@ input: files.tsv
 # Script parameters
 # --------------------------------------------------
 # OPTIONAL
+# Note parameters specified as lists require '-' at the start of each entry
+# Parameters marked * MUST be specified as a list (even if only one entry)
+# Parameters marked ** can optionally be specified a list (will iterate over each unique parameter combination)
 # Global parameters
 format: qs # default: qs; options: qs, rds
 rna-assay: RNA # default: RNA; RNA assay name
 # atac-assay: ATAC # default: ATAC; ATAC assay name
 adt-assay: ADT # default: ADT; ADT assay name
 # merge.R
-gene-types: # default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl gene biotypes to keep
+gene-types: # * default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl gene biotypes to keep
   - protein_coding
   - lincRNA
   - IG_C_gene
@@ -105,16 +117,28 @@ binarize: false # default: false; binarize ATAC counts
 downsample: false # default: false; downsample counts to match sequencing depth across libraries
 exclude-control: true # default: false; exclude control sample (cross-batch technical replicate), 'control' must be specified if true
 # normalise.R
+n-features: # ** default: 3000; maximum number of variable features to select
+  3000
+clr: # ** default: seurat; options: seurat, original; centred-log ratio (CLR) transformation method for ADT data
+  seurat
+regress-percent-mitochondrial: # ** default: false; regress out percentage mitochondrial gene expression
+  true
+regress-cell-cycle: # ** default: false; regress out cell cycle scores
+  true
 exp: orig.ident # default: orig.ident; name of metadata field specifying original experiment
-n-features: 3000 # default: 3000; maximum number of variable features to select
 rna-filter-features: ^MT-|^RP[SL] # default: ^MT-|^RP[SL]; regular expression pattern to filter RNA variable features (matching features will be removed)
 atac-filter-features: ^chrM|^chrY # default: ^chrM|^chrY; regular expression pattern to filter ATAC variable features (matching features will be removed)
-clr: seurat # default: seurat; options: seurat, original; centred-log ratio (CLR) transformation method for ADT data
-regress-percent-mitochondrial: false # default: false; regress out percentage mitochondrial gene expression
-regress-cell-cycle: false # default: false; regress out cell cycle scores
 # integrate.R
-batch: # default: orig.ident; name(s) of metadata field(s) to use for batch variable
+batch: # * default: orig.ident; name(s) of metadata field(s) to use for batch variable
   - orig.ident
-normalisation-method: SCT # default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
-integration-method: rpca # default: rpca; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
-integration-args: sample.tree = build.sample.tree(list(1:3, 4:6, 7:9, 10:12, 13:15, 16:18, 19:21, 22:24)) # default: null; additional arguments to pass to integration function (to prevent parsing errors, use ONLY double quotes within the arguments)
+normalisation-method: # ** default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
+  SCT
+integration-method: # ** default: null; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
+  rpca
+integration-args: # additional arguments to pass to each integration method (to prevent parsing errors, use ONLY double quotes within the arguments)
+  rpca: null
+  jpca: null
+  cca: null
+  fastmnn: null
+  harmony: null
+  scvi: null
