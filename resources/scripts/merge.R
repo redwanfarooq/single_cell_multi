@@ -117,6 +117,7 @@ suppressPackageStartupMessages({
   library(Signac)
 })
 
+source("utils.R")
 source("iterative_overlap_peak_merging.R")
 
 options(future.globals.maxSize = 1000000 * 1024^2, UCSC.goldenPath.url = "http://hgdownload.soe.ucsc.edu/goldenPath")
@@ -247,10 +248,41 @@ if (!is.null(mat$ATAC)) {
     logger::log_info("Finding and quantifying joint ATAC peak set")
     params$peak_method <- params$peak_method %>% match.arg(choices = c("bulk", "fixed", "disjoin", "reduce"))
     if (params$peak_method == "bulk") {
-      # call bulk peaks from all fragments using MACS2
-      if (!params$quiet) message("Calling joint peaks from ", length(params$fragments), " fragments files using MACS2")
+      # downsample fragments to match depth (median unique fragments per cell) across samples
+      cells <- map(.x = mat$ATAC, .f = colnames)
+      depth <- future_map2_dbl(
+        .x = params$fragments,
+        .y = cells,
+        .f = function(file, cells) {
+          metrics <- CountFragments(fragments = file, cells = cells, verbose = FALSE)
+          return(median(metrics$frequency_count))
+        },
+        .options = furrr.options
+      )
+      downsampled.fragments <- future_pmap_chr(
+        .l = list(
+          file = params$fragments,
+          cells = cells,
+          proportion = min(depth) / depth
+        ),
+        .f = function(file, cells, proportion) {
+          if (proportion < 1) {
+            out <- downsample.fragments(
+              input = file,
+              cells = cells,
+              proportion = proportion
+            )
+          } else {
+            out <- file
+          }
+          return(out)
+        },
+        .options = furrr.options
+      )
+      # call bulk peaks from downsampled fragments using MACS2
+      if (!params$quiet) message("Calling joint peaks from ", length(downsampled.fragments), " fragments files using MACS2")
       peaks <- CallPeaks(
-        object = params$fragments,
+        object = downsampled.fragments,
         format = "BED",
         extsize = 200,
         shift = -100,
@@ -302,7 +334,8 @@ if (!is.null(mat$ATAC)) {
         .options = furrr.options
       ) %>%
         Reduce(f = c, x = .) %>%
-        merge.function()
+        merge.function() %>%
+        suppressWarnings() # suppress unhelpful warnings
     }
     peaks <- peaks %>%
       IRanges::subsetByOverlaps(blacklist_hg38_unified, invert = TRUE) %>% # exclude peaks overlapping genomic blacklist regions
