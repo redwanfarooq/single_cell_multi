@@ -68,7 +68,7 @@ module: default
 # --------------------------------------------------
 # REQUIRED
 # Output directories
-output_dir: /project/fuggerlab/rfarooq/project/mogad_multiome/data/processed/multi
+output_dir: /project/fuggerlab/rfarooq/project/mogad_multiome/data/processed/cite_seq/cohort_01/multi
 
 # If 'scripts_dir' not specified, defaults to
 # 'resources/scripts'
@@ -116,7 +116,8 @@ gene-types: # * default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl 
 # binarize: # ** default: false; binarize ATAC counts
 #   false
 downsample: # ** default: false; downsample counts to match sequencing depth across libraries
-  false
+  - true
+  - false
 control: null # default: null; name of control sample (cross-batch technical replicate)
 exclude-control: false # default: false; exclude control sample (cross-batch technical replicate), 'control' must be specified if true
 # normalise.R
@@ -135,7 +136,8 @@ atac-filter-features: ^chrM|^chrY # default: ^chrM|^chrY; regular expression pat
 batch: # * default: orig.ident; name(s) of metadata field(s) to use for batch variable
   - orig.ident
 normalisation-method: # ** default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
-  SCT
+  - LogNormalize
+  - SCT
 integration-method: # ** default: null; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
   rpca
 integration-args: # additional arguments to pass to each integration method (to prevent parsing errors, use ONLY double quotes within the arguments)
