@@ -135,6 +135,7 @@ atac-filter-features: ^chrM|^chrY # default: ^chrM|^chrY; regular expression pat
 # integrate.R
 batch: # * default: orig.ident; name(s) of metadata field(s) to use for batch variable
   - orig.ident
+  - hash_id
 normalisation-method: # ** default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
   - LogNormalize
   - SCT
