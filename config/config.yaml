@@ -140,11 +140,12 @@ normalisation-method: # ** default: LogNormalize; options: LogNormalize, SCT; ch
   - LogNormalize
   - SCT
 integration-method: # ** default: null; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
-  rpca
+  - rpca
+  - harmony
 integration-args: # additional arguments to pass to each integration method (to prevent parsing errors, use ONLY double quotes within the arguments)
   rpca: null
   jpca: null
   cca: null
   fastmnn: null
-  harmony: null
+  harmony: meta_data = seu[[]], vars_use = c("orig.ident", "hash_id")
   scvi: null
