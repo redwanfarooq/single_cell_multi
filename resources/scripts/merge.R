@@ -9,7 +9,7 @@ DOC <- "
 Merge counts and metadata from multisample multimodal single cell experiments
 
 Usage:
-  merge.R --samples=<sample[;sample...]> --output=<output> --hdf5=<path[;path...]> --metadata=<path[;path...]> [--fragments=<path[;path...]>] [options]
+  merge.R --samples=<sample[;sample...]> --output=<output> --hdf5=<path[;path...]> --metadata=<path[;path...]> [--fragments=<path[;path...]>] [--summits=<path[;path...]>] [options]
 
 Arguments:
   REQUIRED
@@ -84,7 +84,7 @@ if (!is.null(params$summits)) {
   }
   params$summits <- params$summits[!missing.files]
 }
-if (params$peak_method == "fixed" && is.null(params$summits)) stop("Argument <summits>: must be provided if running with '--peak-method=fixed'")
+if (!is.null(params$peak_method) && params$peak_method == "fixed" && is.null(params$summits)) stop("Argument <summits>: must be provided if running with '--peak-method=fixed'")
 if (params$exclude_control && is.null(params$control)) stop("Argument <control>: must be provided if running with '--exclude-control'")
 if (!grepl(pattern = "\\.qs$|\\.rds$", x = params$output, ignore.case = TRUE)) stop("Argument <output>: invalid file extension; must be either 'qs' or 'rds'")
 
