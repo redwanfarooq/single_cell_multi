@@ -33,14 +33,13 @@ Arguments:
   --adt-assay=<assay>                     ADT assay name [default: ADT]
   --gene-types=<type[;type]...>           Semicolon-separated list of Ensembl gene biotypes to keep [default: protein_coding;lincRNA;IG_C_gene;TR_C_gene]
   --peak-method=<method>                  Method to select joint ATAC peaks across samples ('bulk', 'fixed', 'disjoin' or 'reduce')
-  --control=<name>                        Name of control sample (cross-batch technical replicate)
+  --filter-cells=<str>                    Logical expression to filter cells based on metadata columns (matching cells will be discarded)
 
 
 Options:
   -h --help                               Show this screen
   -b --binarize                           Binarize ATAC counts
   -d --downsample                         Downsample counts to match sequencing depth across libraries
-  -e --exclude-control                    Exclude control sample (cross-batch technical replicate)
   -q --quiet                              Do not print logging messages to console
 "
 
@@ -85,7 +84,6 @@ if (!is.null(params$summits)) {
   params$summits <- params$summits[!missing.files]
 }
 if (!is.null(params$peak_method) && params$peak_method == "fixed" && is.null(params$summits)) stop("Argument <summits>: must be provided if running with '--peak-method=fixed'")
-if (params$exclude_control && is.null(params$control)) stop("Argument <control>: must be provided if running with '--exclude-control'")
 if (!grepl(pattern = "\\.qs$|\\.rds$", x = params$output, ignore.case = TRUE)) stop("Argument <output>: invalid file extension; must be either 'qs' or 'rds'")
 
 # Log options
@@ -419,11 +417,18 @@ for (x in Assays(seu)) {
   }
 }
 
-# Remove cells from control sample (if specified)
-if (params$exclude_control) {
-  logger::log_info("Removing cells from control sample: {params$control}")
-  if (!any(seu$hash_id == params$control)) warning("No matching samples found")
-  seu <- subset(seu, hash_id != params$control)
+# Filter cells (if specified)
+if (!is.null(params$filter_cells)) {
+  logger::log_info("Filtering cells")
+  discard <- with(seu[[]], eval(parse(text = params$filter)))
+  if (!is.logical(discard)) stop("Filter must return a logical vector; check '--filter-cells' argument")
+  if (sum(discard) == 0) {
+    warning("No cells matching filter")
+  } else if (sum(!discard) == 0) {
+    stop("All cells removed by filter; check '--filter-cells' argument")
+  } else {
+    seu <- seu[, !discard]
+  }
 }
 
 
