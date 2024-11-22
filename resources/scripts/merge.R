@@ -9,7 +9,7 @@ DOC <- "
 Merge counts and metadata from multisample multimodal single cell experiments
 
 Usage:
-  merge.R --samples=<sample[;sample...]> --output=<output> --hdf5=<path[;path...]> --metadata=<path[;path...]> [--fragments=<path[;path...]>] [options]
+  merge.R --samples=<sample[;sample...]> --output=<output> --hdf5=<path[;path...]> --metadata=<path[;path...]> [--fragments=<path[;path...]>] [--summits=<path[;path...]>] [options]
 
 Arguments:
   REQUIRED
@@ -33,14 +33,13 @@ Arguments:
   --adt-assay=<assay>                     ADT assay name [default: ADT]
   --gene-types=<type[;type]...>           Semicolon-separated list of Ensembl gene biotypes to keep [default: protein_coding;lincRNA;IG_C_gene;TR_C_gene]
   --peak-method=<method>                  Method to select joint ATAC peaks across samples ('bulk', 'fixed', 'disjoin' or 'reduce')
-  --control=<name>                        Name of control sample (cross-batch technical replicate)
+  --filter-cells=<str>                    Logical expression to filter cells based on metadata columns (matching cells will be discarded)
 
 
 Options:
   -h --help                               Show this screen
   -b --binarize                           Binarize ATAC counts
   -d --downsample                         Downsample counts to match sequencing depth across libraries
-  -e --exclude-control                    Exclude control sample (cross-batch technical replicate)
   -q --quiet                              Do not print logging messages to console
 "
 
@@ -84,8 +83,7 @@ if (!is.null(params$summits)) {
   }
   params$summits <- params$summits[!missing.files]
 }
-if (params$peak_method == "fixed" && is.null(params$summits)) stop("Argument <summits>: must be provided if running with '--peak-method=fixed'")
-if (params$exclude_control && is.null(params$control)) stop("Argument <control>: must be provided if running with '--exclude-control'")
+if (!is.null(params$peak_method) && params$peak_method == "fixed" && is.null(params$summits)) stop("Argument <summits>: must be provided if running with '--peak-method=fixed'")
 if (!grepl(pattern = "\\.qs$|\\.rds$", x = params$output, ignore.case = TRUE)) stop("Argument <output>: invalid file extension; must be either 'qs' or 'rds'")
 
 # Log options
@@ -117,6 +115,7 @@ suppressPackageStartupMessages({
   library(Signac)
 })
 
+source("utils.R")
 source("iterative_overlap_peak_merging.R")
 
 options(future.globals.maxSize = 1000000 * 1024^2, UCSC.goldenPath.url = "http://hgdownload.soe.ucsc.edu/goldenPath")
@@ -170,46 +169,48 @@ mat <- future_map(
 # adapted from source code for Azimuth:::ConvertEnsemblToSymbol but modified to use EnsDb.Hsapiens.v86
 # NOTE: this method leads to loss of features if Ensembl IDs do not map to a gene symbol in database
 #       an alternative approach would be to use the feature metadata in features.tsv.gz (from CellRanger/STARsolo output)
-logger::log_info("Cleaning up feature names")
-ensdb <- EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86
-res <- future_map(
-  .x = mat$RNA,
-  .f = function(x, gene.types = params$gene_types, db = ensdb) {
-    df <- data.frame(rownames = rownames(x))
-    df$ensembl_id <- sub(pattern = "[.][0-9]*", replacement = "", x = df$rownames)
-    mapping <- ensembldb::select(
-      db,
-      keys = df$ensembl_id,
-      keytype = "GENEID",
-      columns = c("GENEID", "SYMBOL", "GENEBIOTYPE")
-    ) %>%
-      dplyr::rename(
-        ensembl_id = GENEID,
-        gene_symbol = SYMBOL,
-        gene_type = GENEBIOTYPE
-      )
-    df <- left_join(df, mapping, by = "ensembl_id") %>% tibble::column_to_rownames("rownames")
-    df <- df[rownames(x), ] %>%
-      filter(!is.na(gene_symbol), grepl(pattern = paste(gene.types, collapse = "|"), x = gene_type)) %>%
-      mutate(gene_symbol = make.unique(gsub(pattern = "_", replacement = "", x = gene_symbol))) %>%
-      arrange(gene_symbol)
-    x <- x[rownames(df), ]
-    rownames(x) <- df$gene_symbol
-    rownames(df) <- df$gene_symbol
-    return(list(counts = x, metadata = df))
-  },
-  .options = furrr.options
-)
-mat$RNA <- future_map(
-  .x = res,
-  .f = function(x) x$counts,
-  .options = furrr.options
-)
-gene.metadata <- future_map(
-  .x = res,
-  .f = function(x) x$metadata,
-  .options = furrr.options
-)
+if (!is.null(mat$RNA)) {
+  logger::log_info("Cleaning up feature names")
+  ensdb <- EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86
+  res <- future_map(
+    .x = mat$RNA,
+    .f = function(x, gene.types = params$gene_types, db = ensdb) {
+      df <- data.frame(rownames = rownames(x))
+      df$ensembl_id <- sub(pattern = "[.][0-9]*", replacement = "", x = df$rownames)
+      mapping <- ensembldb::select(
+        db,
+        keys = df$ensembl_id,
+        keytype = "GENEID",
+        columns = c("GENEID", "SYMBOL", "GENEBIOTYPE")
+      ) %>%
+        dplyr::rename(
+          ensembl_id = GENEID,
+          gene_symbol = SYMBOL,
+          gene_type = GENEBIOTYPE
+        )
+      df <- left_join(df, mapping, by = "ensembl_id") %>% tibble::column_to_rownames("rownames")
+      df <- df[rownames(x), ] %>%
+        filter(!is.na(gene_symbol), grepl(pattern = paste(gene.types, collapse = "|"), x = gene_type)) %>%
+        mutate(gene_symbol = make.unique(gsub(pattern = "_", replacement = "", x = gene_symbol))) %>%
+        arrange(gene_symbol)
+      x <- x[rownames(df), ]
+      rownames(x) <- df$gene_symbol
+      rownames(df) <- df$gene_symbol
+      return(list(counts = x, metadata = df))
+    },
+    .options = furrr.options
+  )
+  mat$RNA <- future_map(
+    .x = res,
+    .f = function(x) x$counts,
+    .options = furrr.options
+  )
+  gene.metadata <- future_map(
+    .x = res,
+    .f = function(x) x$metadata,
+    .options = furrr.options
+  )
+}
 # Remove isotype control antibody tags
 if (!is.null(mat$ADT)) {
   logger::log_info("Removing isotype control antibody tags")
@@ -247,10 +248,41 @@ if (!is.null(mat$ATAC)) {
     logger::log_info("Finding and quantifying joint ATAC peak set")
     params$peak_method <- params$peak_method %>% match.arg(choices = c("bulk", "fixed", "disjoin", "reduce"))
     if (params$peak_method == "bulk") {
-      # call bulk peaks from all fragments using MACS2
-      if (!params$quiet) message("Calling joint peaks from ", length(params$fragments), " fragments files using MACS2")
+      # downsample fragments to match depth (median unique fragments per cell) across samples
+      cells <- map(.x = mat$ATAC, .f = colnames)
+      depth <- future_map2_dbl(
+        .x = params$fragments,
+        .y = cells,
+        .f = function(file, cells) {
+          metrics <- CountFragments(fragments = file, cells = cells, verbose = FALSE)
+          return(median(metrics$frequency_count))
+        },
+        .options = furrr.options
+      )
+      downsampled.fragments <- future_pmap_chr(
+        .l = list(
+          file = params$fragments,
+          cells = cells,
+          proportion = min(depth) / depth
+        ),
+        .f = function(file, cells, proportion) {
+          if (proportion < 1) {
+            out <- downsample.fragments(
+              input = file,
+              cells = cells,
+              proportion = proportion
+            )
+          } else {
+            out <- file
+          }
+          return(out)
+        },
+        .options = furrr.options
+      )
+      # call bulk peaks from downsampled fragments using MACS2
+      if (!params$quiet) message("Calling joint peaks from ", length(downsampled.fragments), " fragments files using MACS2")
       peaks <- CallPeaks(
-        object = params$fragments,
+        object = downsampled.fragments,
         format = "BED",
         extsize = 200,
         shift = -100,
@@ -302,7 +334,8 @@ if (!is.null(mat$ATAC)) {
         .options = furrr.options
       ) %>%
         Reduce(f = c, x = .) %>%
-        merge.function()
+        merge.function() %>%
+        suppressWarnings() # suppress unhelpful warnings
     }
     peaks <- peaks %>%
       IRanges::subsetByOverlaps(blacklist_hg38_unified, invert = TRUE) %>% # exclude peaks overlapping genomic blacklist regions
@@ -359,20 +392,31 @@ seu <- future_pmap(
     x = mat,
     sample = names(mat),
     cell.metadata = cell.metadata,
-    gene.metadata = gene.metadata
+    gene.metadata = if (exists("gene.metadata")) gene.metadata else map(.x = seq_along(mat), .f = function(x) NULL)
   ),
   function(x, sample, cell.metadata, gene.metadata, fragments.objects = eval(if (exists("fragments")) fragments else NULL)) {
-    obj <- CreateSeuratObject(counts = x$RNA, assay = "RNA", project = sample, meta.data = cell.metadata)
-    obj[["RNA"]] <- AddMetaData(object = obj[["RNA"]], metadata = gene.metadata)
-    if (!is.null(x$ATAC)) {
-      if (is.null(fragments.objects[[sample]])) stop("Missing fragments file for ", sample)
-      obj[["ATAC"]] <- CreateChromatinAssay(
-        counts = x$ATAC,
-        sep = c(":", "-"),
-        fragments = fragments.objects[[sample]]
-      )
+    assays <- map2(
+      .x = x,
+      .y = names(x),
+      .f = function(counts, modality, fragment.object = fragments.objects[[sample]]) {
+        switch(modality,
+          RNA = CreateAssay5Object(counts = counts),
+          ATAC = CreateChromatinAssay(
+            counts = counts,
+            sep = c(":", "-"),
+            fragments = fragment.object
+          ),
+          ADT = CreateAssay5Object(counts = counts)
+        )
+      }
+    )
+    if ("RNA" %in% names(assays)) assays$RNA <- AddMetaData(object = assays$RNA, metadata = gene.metadata)
+    obj <- CreateSeuratObject(counts = assays[[1]], assay = names(assays)[1], project = sample, meta.data = cell.metadata)
+    if (length(assays) > 1) {
+      for (i in seq.int(from = 2, to = length(assays))) {
+        obj[[names(assays)[i]]] <- assays[[i]]
+      }
     }
-    if (!is.null(x$ADT)) obj[["ADT"]] <- CreateAssay5Object(counts = x$ADT)
     return(obj)
   },
   .options = furrr.options
@@ -386,11 +430,18 @@ for (x in Assays(seu)) {
   }
 }
 
-# Remove cells from control sample (if specified)
-if (params$exclude_control) {
-  logger::log_info("Removing cells from control sample: {params$control}")
-  if (!any(seu$hash_id == params$control)) warning("No matching samples found")
-  seu <- subset(seu, hash_id != params$control)
+# Filter cells (if specified)
+if (!is.null(params$filter_cells)) {
+  logger::log_info("Filtering cells")
+  discard <- with(seu[[]], eval(parse(text = params$filter)))
+  if (!is.logical(discard)) stop("Filter must return a logical vector; check '--filter-cells' argument")
+  if (sum(discard) == 0) {
+    warning("No cells matching filter")
+  } else if (sum(!discard) == 0) {
+    stop("All cells removed by filter; check '--filter-cells' argument")
+  } else {
+    seu <- seu[, !discard]
+  }
 }
 
 

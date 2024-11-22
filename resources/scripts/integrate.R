@@ -126,26 +126,28 @@ for (x in Assays(seu)) {
 
 # Perform PCA and integration steps
 # RNA data
-logger::log_info("Performing PCA for RNA data")
-params$normalisation_method <- params$normalisation_method %>% match.arg(choices = c("LogNormalize", "SCT"))
-assay <- if (params$normalisation_method == "SCT") "SCT" else params$rna_assay
-seu <- RunPCA(object = seu, assay = assay, reduction.name = "pca", reduction.key = "PC_", verbose = FALSE)
-if (!is.null(params$integration_method)) {
-  logger::log_info("Integrating RNA data across {length(unique(seu$batch))} batches")
-  args <- list(
-    object = "seu",
-    assay = "assay",
-    method = "match.fun(params$integration_method)",
-    normalization.method = "params$normalisation_method",
-    orig.reduction = "'pca'",
-    new.reduction = "'integrated.rna'",
-    features = "VariableFeatures(object = seu, assay = assay)",
-    dims = "1:50",
-    verbose = "!params$quiet"
-  ) %>%
-    paste(names(.), ., sep = " = ", collapse = ", ") %>%
-    paste(., params$integration_args, sep = ", ")
-  seu <- eval(expr = parse(text = glue::glue("IntegrateLayers({args})")))
+if (params$rna_assay %in% Assays(seu)) {
+  logger::log_info("Performing PCA for RNA data")
+  params$normalisation_method <- params$normalisation_method %>% match.arg(choices = c("LogNormalize", "SCT"))
+  assay <- if (params$normalisation_method == "SCT") "SCT" else params$rna_assay
+  seu <- RunPCA(object = seu, assay = assay, reduction.name = "pca", reduction.key = "PC_", verbose = FALSE)
+  if (!is.null(params$integration_method)) {
+    logger::log_info("Integrating RNA data across {length(unique(seu$batch))} batches")
+    args <- list(
+      object = "seu",
+      assay = "assay",
+      method = "match.fun(params$integration_method)",
+      normalization.method = "params$normalisation_method",
+      orig.reduction = "'pca'",
+      new.reduction = "'integrated.rna'",
+      features = "VariableFeatures(object = seu, assay = assay)",
+      dims = "1:50",
+      verbose = "!params$quiet"
+    ) %>%
+      paste(names(.), ., sep = " = ", collapse = ", ") %>%
+      paste(., params$integration_args, sep = ", ")
+    seu <- eval(expr = parse(text = glue::glue("IntegrateLayers({args})")))
+  }
 }
 
 # ATAC data
