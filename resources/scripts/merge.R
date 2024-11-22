@@ -155,7 +155,8 @@ mat <- future_map(
   .x = params$hdf5,
   .f = function(file) {
     if (!params$quiet) message("Loading count matrices: ", file)
-    x <- Read10X_h5(file, use.names = FALSE, unique.features = FALSE) %>% suppressMessages()
+    x <- get.10x.h5(file)
+    if (!is.list(x)) x <- list(x) # convert to list if only one modality is present
     return(x)
   },
   .options = furrr.options
