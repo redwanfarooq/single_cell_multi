@@ -169,46 +169,48 @@ mat <- future_map(
 # adapted from source code for Azimuth:::ConvertEnsemblToSymbol but modified to use EnsDb.Hsapiens.v86
 # NOTE: this method leads to loss of features if Ensembl IDs do not map to a gene symbol in database
 #       an alternative approach would be to use the feature metadata in features.tsv.gz (from CellRanger/STARsolo output)
-logger::log_info("Cleaning up feature names")
-ensdb <- EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86
-res <- future_map(
-  .x = mat$RNA,
-  .f = function(x, gene.types = params$gene_types, db = ensdb) {
-    df <- data.frame(rownames = rownames(x))
-    df$ensembl_id <- sub(pattern = "[.][0-9]*", replacement = "", x = df$rownames)
-    mapping <- ensembldb::select(
-      db,
-      keys = df$ensembl_id,
-      keytype = "GENEID",
-      columns = c("GENEID", "SYMBOL", "GENEBIOTYPE")
-    ) %>%
-      dplyr::rename(
-        ensembl_id = GENEID,
-        gene_symbol = SYMBOL,
-        gene_type = GENEBIOTYPE
-      )
-    df <- left_join(df, mapping, by = "ensembl_id") %>% tibble::column_to_rownames("rownames")
-    df <- df[rownames(x), ] %>%
-      filter(!is.na(gene_symbol), grepl(pattern = paste(gene.types, collapse = "|"), x = gene_type)) %>%
-      mutate(gene_symbol = make.unique(gsub(pattern = "_", replacement = "", x = gene_symbol))) %>%
-      arrange(gene_symbol)
-    x <- x[rownames(df), ]
-    rownames(x) <- df$gene_symbol
-    rownames(df) <- df$gene_symbol
-    return(list(counts = x, metadata = df))
-  },
-  .options = furrr.options
-)
-mat$RNA <- future_map(
-  .x = res,
-  .f = function(x) x$counts,
-  .options = furrr.options
-)
-gene.metadata <- future_map(
-  .x = res,
-  .f = function(x) x$metadata,
-  .options = furrr.options
-)
+if (!is.null(mat$RNA)) {
+  logger::log_info("Cleaning up feature names")
+  ensdb <- EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86
+  res <- future_map(
+    .x = mat$RNA,
+    .f = function(x, gene.types = params$gene_types, db = ensdb) {
+      df <- data.frame(rownames = rownames(x))
+      df$ensembl_id <- sub(pattern = "[.][0-9]*", replacement = "", x = df$rownames)
+      mapping <- ensembldb::select(
+        db,
+        keys = df$ensembl_id,
+        keytype = "GENEID",
+        columns = c("GENEID", "SYMBOL", "GENEBIOTYPE")
+      ) %>%
+        dplyr::rename(
+          ensembl_id = GENEID,
+          gene_symbol = SYMBOL,
+          gene_type = GENEBIOTYPE
+        )
+      df <- left_join(df, mapping, by = "ensembl_id") %>% tibble::column_to_rownames("rownames")
+      df <- df[rownames(x), ] %>%
+        filter(!is.na(gene_symbol), grepl(pattern = paste(gene.types, collapse = "|"), x = gene_type)) %>%
+        mutate(gene_symbol = make.unique(gsub(pattern = "_", replacement = "", x = gene_symbol))) %>%
+        arrange(gene_symbol)
+      x <- x[rownames(df), ]
+      rownames(x) <- df$gene_symbol
+      rownames(df) <- df$gene_symbol
+      return(list(counts = x, metadata = df))
+    },
+    .options = furrr.options
+  )
+  mat$RNA <- future_map(
+    .x = res,
+    .f = function(x) x$counts,
+    .options = furrr.options
+  )
+  gene.metadata <- future_map(
+    .x = res,
+    .f = function(x) x$metadata,
+    .options = furrr.options
+  )
+}
 # Remove isotype control antibody tags
 if (!is.null(mat$ADT)) {
   logger::log_info("Removing isotype control antibody tags")
@@ -390,20 +392,31 @@ seu <- future_pmap(
     x = mat,
     sample = names(mat),
     cell.metadata = cell.metadata,
-    gene.metadata = gene.metadata
+    gene.metadata = if (exists("gene.metadata")) gene.metadata else map(.x = seq_along(mat), .f = function(x) NULL)
   ),
   function(x, sample, cell.metadata, gene.metadata, fragments.objects = eval(if (exists("fragments")) fragments else NULL)) {
-    obj <- CreateSeuratObject(counts = x$RNA, assay = "RNA", project = sample, meta.data = cell.metadata)
-    obj[["RNA"]] <- AddMetaData(object = obj[["RNA"]], metadata = gene.metadata)
-    if (!is.null(x$ATAC)) {
-      if (is.null(fragments.objects[[sample]])) stop("Missing fragments file for ", sample)
-      obj[["ATAC"]] <- CreateChromatinAssay(
-        counts = x$ATAC,
-        sep = c(":", "-"),
-        fragments = fragments.objects[[sample]]
-      )
+    assays <- map2(
+      .x = x,
+      .y = names(x),
+      .f = function(counts, modality, fragment.object = fragments.objects[[sample]]) {
+        switch(modality,
+          RNA = CreateAssay5Object(counts = counts),
+          ATAC = CreateChromatinAssay(
+            counts = counts,
+            sep = c(":", "-"),
+            fragments = fragment.object
+          ),
+          ADT = CreateAssay5Object(counts = counts)
+        )
+      }
+    )
+    if ("RNA" %in% names(assays)) assays$RNA <- AddMetaData(object = assays$RNA, metadata = gene.metadata)
+    obj <- CreateSeuratObject(counts = assays[[1]], assay = names(assays)[1], project = sample, meta.data = cell.metadata)
+    if (length(assays) > 1) {
+      for (i in seq.int(from = 2, to = length(assays))) {
+        obj[[names(assays)[i]]] <- assays[[i]]
+      }
     }
-    if (!is.null(x$ADT)) obj[["ADT"]] <- CreateAssay5Object(counts = x$ADT)
     return(obj)
   },
   .options = furrr.options
