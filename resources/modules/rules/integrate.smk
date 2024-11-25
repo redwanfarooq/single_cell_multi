@@ -14,6 +14,7 @@ rule integrate:
 	log: os.path.abspath("logs/{prefix}/batch:{batch}_normalisation:{normalisation_method}_integration:{integration_method}/integrate.log")
 	threads: min(floor(len(samples) / 5) + 1, 4)
 	resources:
+		gpus = lambda wildcards: 1 if wildcards.integration_method == "scvi" else 0,
 		mem = lambda wildcards, threads: f"{threads * 100}GiB"
 	params:
 		script_path = scripts_dir if os.path.isabs(scripts_dir) else os.path.join(workflow.basedir, scripts_dir),

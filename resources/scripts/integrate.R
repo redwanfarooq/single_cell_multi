@@ -202,10 +202,10 @@ if (params$adt_assay %in% Assays(seu)) {
       paste(names(.), ., sep = " = ", collapse = ", ") %>%
       paste(., params$integration_args, sep = ", ")
     seu <- eval(expr = parse(text = glue::glue("IntegrateLayers({args})"))) %>% suppressWarnings() # suppress unhelpful warnings
-    if (!any(dim(Loadings(seu, reduction = "integrated.adt")) == 0)) {
+    if (all(dim(Loadings(seu, reduction = "integrated.adt")) > 0)) {
       seu[[paste0(assay, "C")]] <- CreateAssayObject(data = t(Embeddings(seu, reduction = "integrated.adt") %*% t(Loadings(seu, reduction = "integrated.adt"))))
-      seu <- ScaleData(object = seu, assay = paste0(assay, "C"))
     }
+    seu <- ScaleData(object = seu, assay = paste0(assay, "C"))
   }
 }
 
