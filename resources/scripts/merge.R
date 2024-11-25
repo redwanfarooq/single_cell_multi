@@ -118,7 +118,7 @@ suppressPackageStartupMessages({
 source("utils.R")
 source("iterative_overlap_peak_merging.R")
 
-options(future.globals.maxSize = 1000000 * 1024^2, UCSC.goldenPath.url = "http://hgdownload.soe.ucsc.edu/goldenPath")
+options(future.globals.maxSize = 1000000 * 1024^2)
 furrr.options <- furrr_options(seed = 42, scheduling = FALSE)
 
 if (!dir.exists(dirname(params$output))) dir.create(dirname(params$output), recursive = TRUE)
@@ -412,6 +412,16 @@ seu <- future_pmap(
       }
     )
     if ("RNA" %in% names(assays)) assays$RNA <- AddMetaData(object = assays$RNA, metadata = gene.metadata)
+    names(assays) <- map_chr(
+      .x = names(assays),
+      .f = function(x) {
+        switch(x,
+          RNA = params$rna_assay,
+          ATAC = params$atac_assay,
+          ADT = params$adt_assay
+        )
+      }
+    )
     obj <- CreateSeuratObject(counts = assays[[1]], assay = names(assays)[1], project = sample, meta.data = cell.metadata)
     if (length(assays) > 1) {
       for (i in seq.int(from = 2, to = length(assays))) {
