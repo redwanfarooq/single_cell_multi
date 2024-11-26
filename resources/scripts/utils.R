@@ -75,9 +75,10 @@ downsample.fragments <- function(input,
 #' If not specified, will use 'matrix' for v3 and the only group for v2.
 #'
 #' @returns A sparse matrix of counts with features as row names and cell barcodes
-#' as column names, named with feature type (if present). If feature type not specified
-#' and multiple types are present returns a named list of sparse matrices (one per feature
-#' type detected).
+#' as column names. If feature type not specified returns a named list of sparse matrices
+#' (one per feature type detected).
+#'
+#' @importFrom hdf5r H5File existsGroup
 #'
 #' @export
 get.10x.h5 <- function(file,
@@ -133,20 +134,16 @@ get.10x.h5 <- function(file,
     feature.type <- infile[["matrix/features/feature_type"]]
     if (!is.null(type)) {
       matrix <- matrix[feature.type[] %in% type, ]
-      names(matrix) <- type
     } else {
-      if (length(unique(feature.type[])) > 1) {
-        message("Multiple feature types detected: ", paste(unique(feature.type[]), collapse = ", "), ". Returning list of matrices; please specify 'type' parameter to return a single matrix.")
-        matrix <- lapply(
-          unique(feature.type[]),
-          function(type, matrix, feature.type) matrix[grep(pattern = type, x = feature.type), ],
-          matrix = matrix,
-          feature.type = feature.type[]
-        ) |>
-          setNames(unique(feature.type[]))
-      } else {
-        names(matrix) <- unique(feature.type[])
-      }
+      if (length(unique(feature.type[])) > 1) message("Multiple feature types detected: ", paste(unique(feature.type[]), collapse = ", "), ".")
+      message("Returning list of matrices; please specify 'type' parameter to return a single matrix.")
+      matrix <- lapply(
+        unique(feature.type[]),
+        function(type, matrix, feature.type) matrix[grep(pattern = type, x = feature.type), ],
+        matrix = matrix,
+        feature.type = feature.type[]
+      ) |>
+        setNames(unique(feature.type[]))
     }
 
     return(matrix)
