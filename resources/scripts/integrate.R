@@ -159,7 +159,10 @@ if (params$atac_assay %in% Assays(seu)) {
     # Temporarily switch ATAC assay from ChromatinAssay to Assay v5 to enable use of IntegrateLayers
     suppressWarnings({
       tmp <- seu[[assay]]
-      seu[[assay]] <- CreateAssay5Object(data = GetAssayData(object = seu[[assay]], slot = "data")) %>%
+      seu[[assay]] <- CreateAssay5Object(
+        counts = GetAssayData(object = seu[[assay]], slot = "counts"),
+        data = GetAssayData(object = seu[[assay]], slot = "data")
+      ) %>%
         split(f = seu$batch)
       LayerData(object = seu, assay = assay, layer = "scale.data") <- SparseEmptyMatrix(nrow = nrow(tmp), ncol = ncol(tmp), rownames = rownames(tmp), colnames = colnames(tmp))
     }) # suppress unhelpful warnings
