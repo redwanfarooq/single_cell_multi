@@ -156,14 +156,16 @@ mat <- future_map(
   .f = function(file) {
     if (!params$quiet) message("Loading count matrices: ", file)
     x <- get.10x.h5(file)
-    if (!is.list(x)) x <- list(x) # convert to list if only one modality is present
+    if (is.null(names(x))) stop("Unable to determine feature type(s) from features matrix: ", file)
     return(x)
   },
   .options = furrr.options
 ) %>%
   setNames(params$samples) %>%
   transpose() %>%
-  setNames(case_match(names(.), "Gene Expression" ~ "RNA", "Peaks" ~ "ATAC", "Antibody Capture" ~ "ADT"))
+  setNames(case_match(names(.), "Gene Expression" ~ "RNA", "Peaks" ~ "ATAC", "Antibody Capture" ~ "ADT", .default = NA)) # translate 10x feature types
+mat <- mat[!is.na(names(mat))] # drop unrecognized feature types
+if (!length(mat)) stop("No valid feature types found in features matrices")
 # Clean up feature names in RNA assays
 # convert RNA feature names from Ensembl ID to gene symbol and extract feature metadata
 # only keep genes annotated as protein-coding or lincRNA
