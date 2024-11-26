@@ -30,6 +30,11 @@ void downsample_fragments(const string& input_file, const string& output_file, c
     char buffer[4096];
     long line_number = 0;
     while (gzgets(gz_input, buffer, sizeof(buffer)) != Z_NULL) {
+        // ignore comment lines starting with '#'
+        if (buffer[0] == '#') {
+            continue;
+        }
+        
         char* token;
         char* rest = buffer;
         vector<char*> fields;
