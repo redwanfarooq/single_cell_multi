@@ -68,7 +68,7 @@ module: default
 # --------------------------------------------------
 # REQUIRED
 # Output directories
-output_dir: /project/fuggerlab/rfarooq/project/ocrelizumab_multiome/data/processed/cite_seq/cohort_treatment_naive/cellbender/multi
+output_dir: /project/fuggerlab/rfarooq/project/ocrelizumab_multiome/data/processed/cite_seq/cohort_02/cellbender/multi
 
 # If 'scripts_dir' not specified, defaults to
 # 'resources/scripts'
@@ -99,7 +99,7 @@ input: files.tsv
 # OPTIONAL
 # Note parameters specified as lists require '-' at the start of each entry
 # Parameters marked * MUST be specified as a list (even if only one entry)
-# Parameters marked ** can optionally be specified a list (will iterate over each unique parameter combination)
+# Parameters marked ** can optionally be specified as a list (will iterate over each unique parameter combination)
 # Global parameters
 format: qs # default: qs; options: qs, rds
 rna-assay: RNA # default: RNA; RNA assay name
@@ -111,11 +111,13 @@ gene-types: # * default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl 
   - lincRNA
   - IG_C_gene
   - TR_C_gene
-peak-method: null # default: null; options: call, disjoin, reduce; method to select joint ATAC peaks across samples
-control: Control # default: null; name of control sample (cross-batch technical replicate)
-binarize: false # default: false; binarize ATAC counts
-downsample: false # default: false; downsample counts to match sequencing depth across libraries
-exclude-control: true # default: false; exclude control sample (cross-batch technical replicate), 'control' must be specified if true
+peak-method: # ** default: null; options: bulk, fixed, disjoin, reduce; method to select joint ATAC peaks across samples
+  null
+binarize: # ** default: false; binarize ATAC counts
+  false
+downsample: # ** default: false; downsample counts to match sequencing depth across libraries
+  false
+filter-cells: null # default: null; logical expression to filter cells based on metadata columns (matching cells will be discarded; to prevent parsing errors, use ONLY double quotes within the expression)
 # normalise.R
 n-features: # ** default: 3000; maximum number of variable features to select
   3000
@@ -134,7 +136,10 @@ batch: # * default: orig.ident; name(s) of metadata field(s) to use for batch va
 normalisation-method: # ** default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
   SCT
 integration-method: # ** default: null; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
-  rpca
+  - rpca
+  - fastmnn
+  - harmony
+  - scvi
 integration-args: # additional arguments to pass to each integration method (to prevent parsing errors, use ONLY double quotes within the arguments)
   rpca: null
   jpca: null

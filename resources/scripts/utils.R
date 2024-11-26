@@ -3,119 +3,11 @@
 # ==============================
 
 
+require(Rcpp)
+
+
 # C++ function for efficiently downsampling fragments files
-Rcpp::sourceCpp(
-  code = r"(
-#include <Rcpp.h>
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <unordered_set>
-#include <unordered_map>
-#include <random>
-#include <zlib.h>
-#include <cstring>
-
-using namespace std;
-using namespace Rcpp;
-
-// [[Rcpp::export]]
-void downsample_fragments(const string& input_file, const string& output_file, const vector<string>& valid_barcodes, double proportion, int seed = 42, bool verbose = true) {
-    // create a set of valid barcodes for quick lookup
-    unordered_set<string> barcode_set(valid_barcodes.begin(), valid_barcodes.end());
-
-    // open the input file
-    gzFile gz_input = gzopen(input_file.c_str(), "rb");
-    if (!gz_input) {
-        Rcerr << "Failed to open input file: " << input_file << endl;
-        return;
-    }
-
-    // create a map to store the indices of rows for each valid barcode
-    unordered_map<string, vector<long>> barcode_indices;
-
-    // read the input file line by line
-    char buffer[4096];
-    long line_number = 0;
-    while (gzgets(gz_input, buffer, sizeof(buffer)) != Z_NULL) {
-        char* token;
-        char* rest = buffer;
-        vector<char*> fields;
-
-        // split the line into fields using tab as the delimiter
-        while ((token = strtok_r(rest, "\t", &rest))) {
-            fields.push_back(token);
-        }
-
-        // check if the line contains exactly 5 columns
-        if (fields.size() != 5) {
-            Rcerr << "Invalid input file on line " << line_number + 1 << endl;
-            gzclose(gz_input);
-            return;
-        }
-
-        // extract the 4th column (barcode)
-        string barcode(fields[3]);
-
-        // store row index if the barcode is valid
-        if (barcode_set.find(barcode) != barcode_set.end()) {
-            barcode_indices[barcode].push_back(line_number);
-        }
-
-        // print progress message for every million lines if verbose is true
-        if (verbose && ++line_number % 1000000 == 0) {
-            Rcout << "Processed " << line_number << " lines" << endl;
-        }
-    }
-
-    // check if any valid barcodes were found
-    if (barcode_indices.empty()) {
-        Rcerr << "None of the barcodes were found in the input file" << endl;
-        gzclose(gz_input);
-        return;
-    }
-
-    // create a set to store the sampled indices
-    unordered_set<long> sampled_indices;
-
-    // create a random number generator with the given seed
-    mt19937 gen(seed);
-
-    // sample the indices for each barcode
-    for (const auto& [barcode, indices] : barcode_indices) {
-        size_t sample_size = static_cast<size_t>(indices.size() * proportion);
-        vector<long> sampled;
-        sample(indices.begin(), indices.end(), back_inserter(sampled), sample_size, gen);
-        sampled_indices.insert(sampled.begin(), sampled.end());
-    }
-
-    // reset the input file pointer to the beginning
-    gzrewind(gz_input);
-
-    // open the output file
-    gzFile gz_output = gzopen(output_file.c_str(), "wb");
-    if (!gz_output) {
-        Rcerr << "Failed to open output file: " << output_file << endl;
-        gzclose(gz_input);
-        return;
-    }
-
-    // read the input file again and write the selected lines to the output file
-    line_number = 0;
-    while (gzgets(gz_input, buffer, sizeof(buffer)) != Z_NULL) {
-        // check if the row index is in the set of sampled indices
-        if (sampled_indices.find(line_number) != sampled_indices.end()) {
-            gzwrite(gz_output, buffer, strlen(buffer));
-        }
-        line_number++;
-    }
-
-    // close the files
-    gzclose(gz_input);
-    gzclose(gz_output);
-}
-)"
-)
+Rcpp::sourceCpp("downsample_fragments.cpp")
 
 
 #' Downsample fragments
@@ -164,4 +56,96 @@ downsample.fragments <- function(input,
   )
   message("Output saved to ", output)
   return(output)
+}
+
+
+#' Get 10x count matrix
+#'
+#' Loads 10x count matrix (in HDF5 format).
+#'
+#' @param file Path to file.
+#' @param version Character scalar. 10x HDF5 version ('auto', 'v2', or 'v3').
+#' @param cells Character vector. If specified, will subset to matching cell
+#' barcodes.
+#' @param type Character vector. If specified, will subset to features with matching
+#' values in feature type field (v3 only).
+#' @param remove.suffix Logical scalar (default `TRUE`). Remove '-1' suffix automatically
+#' appended to cell barcodes by Cell Ranger.
+#' @param group Optional character scalar. Group name in HDF5 file containing count matrix.
+#' If not specified, will use 'matrix' for v3 and the only group for v2.
+#'
+#' @returns A sparse matrix of counts with features as row names and cell barcodes
+#' as column names. If feature type not specified returns a named list of sparse matrices
+#' (one per feature type detected).
+#'
+#' @importFrom hdf5r H5File existsGroup
+#'
+#' @export
+get.10x.h5 <- function(file,
+                       version = c("auto", "v2", "v3"),
+                       cells = NULL,
+                       type = NULL,
+                       remove.suffix = TRUE,
+                       group = NULL) {
+  if (!file.exists(file)) stop(file, " does not exist")
+
+  infile <- hdf5r::H5File$new(filename = file, mode = "r")
+
+  version <- match.arg(version)
+  if (version == "auto") {
+    version <- if (hdf5r::existsGroup(infile, "matrix")) "v3" else "v2"
+    message("Detected 10x HDF5 version: ", version)
+  }
+  features <- if (version == "v2") "genes" else "features/id"
+
+  if (is.null(group)) {
+    if (version == "v3") {
+      group <- "matrix"
+    } else {
+      group <- names(infile)
+      if (length(group) > 1) stop("Multiple groups detected: ", paste(group, collapse = ", "), ". Please specify 'group' parameter.")
+    }
+  }
+  counts <- infile[[paste(group, "data", sep = "/")]]
+  indices <- infile[[paste(group, "indices", sep = "/")]]
+  indptr <- infile[[paste(group, "indptr", sep = "/")]]
+  shape <- infile[[paste(group, "shape", sep = "/")]]
+  features <- infile[[paste(group, features, sep = "/")]]
+  barcodes <- infile[[paste(group, "barcodes", sep = "/")]]
+  matrix <- Matrix::sparseMatrix(
+    i = indices[],
+    p = indptr[],
+    x = as.numeric(counts[]),
+    dims = shape[],
+    dimnames = list(features[], barcodes[]),
+    index1 = FALSE,
+    repr = "C"
+  )
+
+  if (remove.suffix) colnames(matrix) <- gsub(pattern = "-1$", replacement = "", colnames(matrix))
+
+  if (!is.null(cells)) matrix <- matrix[, match(cells, colnames(matrix))]
+  if (any(is.na(colnames(matrix)))) {
+    warning(sum(is.na(colnames(matrix))), " barcode(s) in 'cells' not present in count matrix")
+    matrix <- matrix[, !is.na(colnames(matrix))]
+  }
+
+  if (version == "v3") {
+    feature.type <- infile[["matrix/features/feature_type"]]
+    if (!is.null(type)) {
+      matrix <- matrix[feature.type[] %in% type, ]
+    } else {
+      if (length(unique(feature.type[])) > 1) message("Multiple feature types detected: ", paste(unique(feature.type[]), collapse = ", "), ".")
+      message("Returning list of matrices; please specify 'type' parameter to return a single matrix.")
+      matrix <- lapply(
+        unique(feature.type[]),
+        function(type, matrix, feature.type) matrix[grep(pattern = type, x = feature.type), ],
+        matrix = matrix,
+        feature.type = feature.type[]
+      ) |>
+        setNames(unique(feature.type[]))
+    }
+
+    return(matrix)
+  }
 }

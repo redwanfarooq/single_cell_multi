@@ -21,13 +21,12 @@ git submodule update --remote single_cell_multi
         * [docopt v0.7.1](https://CRAN.R-project.org/package=docopt)
         * [logger v0.3.0](https://CRAN.R-project.org/package=logger)
         * [qs v0.26.3](https://CRAN.R-project.org/package=qs)
+        * [hdf5r v1.3.11](https://CRAN.R-project.org/package=hdf5r)
         * [tidyverse v2.0.0](https://CRAN.R-project.org/package=tidyverse)
         * [furrr v0.3.1](https://CRAN.R-project.org/package=furrr)
         * [MatrixExtra v0.1.15](https://CRAN.R-project.org/package=MatrixExtra)
         * [Seurat v5.1.0](https://CRAN.R-project.org/package=Seurat)
-        * [SeuratWrappers v0.3.1](https://github.com/satijalab/seurat-wrappers)
         * [Signac v1.14.0](https://CRAN.R-project.org/package=Signac)
-        * [BPCells v0.2.0](https://github.com/bnprks/BPCells)
         * [harmony v1.2.1](https://CRAN.R-project.org/package=harmony)
         * [Bioconductor v3.18](https://www.bioconductor.org/install/)
             + DropletUtils
@@ -36,6 +35,7 @@ git submodule update --remote single_cell_multi
             + EnsDb.Hsapiens.v86
             + GenomicRanges
             + GenomeInfoDb
+            + glmGamPoi
     - [MACS2 >=v2.2.9](https://github.com/macs3-project/MACS/wiki/Install-macs2)
     - [scvi-tools >=v1.2.0](https://scvi-tools.org/en/stable/install.html)
 

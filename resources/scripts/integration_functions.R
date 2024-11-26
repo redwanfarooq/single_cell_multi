@@ -4,7 +4,7 @@
 
 
 # Explicitly define set if null operator
-`%||%` <- SeuratObject::`%||%`
+`%||%` <- rlang::`%||%`
 
 
 # Customised general wrapper functions for integration methods
@@ -103,6 +103,107 @@ FastMNNIntegration <- function(object,
   return(output.list)
 }
 attr(x = FastMNNIntegration, which = "Seurat.method") <- "integration"
+
+
+scVIIntegration <- function(object,
+                            assay = NULL,
+                            layers = NULL,
+                            orig = NULL,
+                            new.reduction = "integrated.dr",
+                            features = NULL,
+                            normalization.method = c("LogNormalize", "SCT"),
+                            dims = 1:30,
+                            scale.layer = "scale.data",
+                            max_epochs = NULL,
+                            verbose = TRUE,
+                            ...) {
+  features <- features %||% Seurat::SelectIntegrationFeatures5(object = object)
+  assay <- assay %||% SeuratObject::DefaultAssay(object = object)
+  layers <- layers %||% SeuratObject::Layers(object = object, search = "data")
+  groups <- Seurat:::CreateIntegrationGroups(object, layers = layers, scale.layer = scale.layer)
+
+  if (verbose) message("Loading Python libraries")
+  ad <- reticulate::import("anndata", convert = FALSE)
+  scipy <- reticulate::import("scipy", convert = FALSE)
+  scvi <- reticulate::import("scvi", convert = FALSE)
+
+  # infer modality from assay name to select correct scVI model
+  model <- dplyr::case_when(
+    grepl(pattern = "rna|sct|gene", x = assay, ignore.case = TRUE) ~ "SCVI",
+    grepl(pattern = "atac|peak|chrom", x = assay, ignore.case = TRUE) ~ "PEAKVI",
+    grepl(pattern = "adt|cite|prot", x = assay, ignore.case = TRUE) ~ "TOTALVI",
+    TRUE ~ NA
+  )
+  if (is.na(model)) stop("Unable to infer modality from assay name: ", assay)
+  # extract user-defined model parameters accounting for parametrisation differences
+  args.model <- list(...)
+  for (param in c("n_hidden", "n_layers", "n_latent")) {
+    if (!is.null(args.model[[param]])) {
+      args.model[[param]] <- as.integer(args.model[[param]])
+    }
+  }
+  if (model %in% c("PEAKVI", "TOTALVI")) {
+    if (!is.null(args.model$n_layers)) {
+      args.model$n_layers_encoder <- args.model$n_layers_decoder <- args.model$n_layers
+      args.model$n_layers <- NULL
+    }
+    if (model == "TOTALVI" && !is.null(args.model$dropout_rate)) {
+      args.model$dropout_rate_encoder <- args.model$dropout_rate_decoder <- args.model$dropout_rate
+      args.model$dropout_rate <- NULL
+    }
+  }
+
+  # extract counts, integration groups and feature metadata and create AnnData object
+  if (is(object, "Assay5")) object <- SeuratObject::JoinLayers(object = object, layers = "counts")
+  args.adata <- list(obs = groups, var = NULL)
+  args.setup <- list(batch_key = "group")
+  if (model == "TOTALVI") {
+    # create a dummy gene count matrix
+    args.adata$X <- scipy$sparse$csr_matrix(SeuratObject::SparseEmptyMatrix(nrow = ncol(object), ncol = 1, rownames = colnames(object), colnames = "XXX"))
+    # get protein count matrix
+    args.adata$obsm <- list(protein = as.data.frame(Matrix::t(LayerData(object = object, layer = "counts")[features, ])))
+    args.setup$protein_expression_obsm_key <- "protein"
+  } else {
+    # get gene or peak count matrix
+    args.adata$X <- scipy$sparse$csr_matrix(Matrix::t(LayerData(object = object, layer = "counts")[features, ]))
+  }
+  adata <- do.call(ad$AnnData, args.adata)
+  args.setup$adata <- args.model$adata <- adata
+
+  # set up and train the model
+  if (verbose) message("Running ", model)
+  do.call(scvi$model[[model]]$setup_anndata, args.setup)
+  vae <- do.call(scvi$model[[model]], args.model)
+  vae$train(max_epochs = if (is.null(max_epochs)) NULL else as.integer(max_epochs))
+
+  # extract the latent embedding
+  latent <- vae$get_latent_representation() |> as.matrix()
+  rownames(latent) <- reticulate::py_to_r(adata$obs$index$values)
+  merged <- SeuratObject::CreateDimReducObject(
+    embeddings = latent,
+    assay = assay,
+    key = paste0(gsub(pattern = "[^[:alpha:]]", replacement = "", x = new.reduction), "_")
+  ) %>%
+    suppressWarnings()
+  output.list <- list(merged)
+  names(output.list) <- c(new.reduction)
+
+  # extract batch-corrected log-normalised counts for ADT data (useful for visualisation and gating populations using biplots)
+  # must be obtained directly from the trained model as the latent embedding does not have loading scores for the original features in contrast to PCA-based batch correction methods
+  if (model == "TOTALVI") {
+    data <- reticulate::py_to_r(vae$get_normalized_expression(transform_batch = list(unique(groups[, 1])), n_samples = 25L, return_mean = TRUE))[[2]]
+    data <- data |>
+      t() |>
+      as("CsparseMatrix") |>
+      log1p()
+    colnames(data) <- colnames(object)
+    rownames(data) <- rownames(object)
+    output.list[[paste0(assay, "C")]] <- SeuratObject::CreateAssayObject(data = data)
+  }
+
+  return(output.list)
+}
+attr(x = scVIIntegration, which = "Seurat.method") <- "integration"
 
 
 # Customised ChromatinAssay-specific wrapper functions for integration methods
