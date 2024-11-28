@@ -16,6 +16,7 @@ git submodule update --remote single_cell_multi
     - [docopt >=v0.6](https://github.com/docopt/docopt)
     - [pandas >=v2.0](https://pandas.pydata.org/docs/getting_started/install.html)
     - [loguru >=v0.7](https://github.com/Delgan/loguru)
+    - [h5py >=3.12](https://docs.h5py.org/en/latest/build.html)
 2. Specific modules
     - [R >=v4.3](https://cran.r-project.org)
         * [docopt v0.7.1](https://CRAN.R-project.org/package=docopt)
