@@ -154,8 +154,10 @@ def _get_hash(options: dict, *args):
 
 
 def _file_to_str(path: os.PathLike) -> str:
-    with open(file=path, mode="r", encoding="UTF-8") as f:
-        return f.read().strip()
+    if os.path.isfile(path):
+        with open(file=path, mode="r", encoding="UTF-8") as f:
+            return f.read().strip()
+    return ""
 
 
 # ==============================
