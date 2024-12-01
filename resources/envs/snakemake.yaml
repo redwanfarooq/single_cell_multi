@@ -79,6 +79,8 @@ dependencies:
   - grpcio=1.67.1
   - h11=0.14.0
   - h2=4.1.0
+  - h5py=3.12.1
+  - hdf5=1.14.3
   - hpack=4.0.0
   - httpcore=1.0.7
   - httplib2=0.22.0
@@ -117,10 +119,13 @@ dependencies:
   - krb5=1.21.3
   - ld_impl_linux-64=2.43
   - libabseil=20240722.0
+  - libaec=1.1.3
   - libblas=3.9.0
   - libcblas=3.9.0
   - libcrc32c=1.1.2
+  - libcurl=8.10.1
   - libedit=3.1.20230828
+  - libev=4.33
   - libexpat=2.6.4
   - libffi=3.4.4
   - libgcc=14.2.0
@@ -132,12 +137,14 @@ dependencies:
   - libgrpc=1.67.1
   - liblapack=3.9.0
   - liblapacke=3.9.0
+  - libnghttp2=1.64.0
   - libnsl=2.0.1
   - libopenblas=0.3.28
   - libprotobuf=5.28.2
   - libre2-11=2024.07.02
   - libsodium=1.0.20
   - libsqlite=3.47.0
+  - libssh2=1.11.1
   - libstdcxx=14.2.0
   - libstdcxx-ng=14.2.0
   - libuuid=2.38.1
