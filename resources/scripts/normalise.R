@@ -194,7 +194,14 @@ if (params$adt_assay %in% Assays(seu)) {
   params$clr <- params$clr %>% match.arg(choices = c("seurat", "original"))
   assay <- params$adt_assay
   seu <- split(seu, f = seu[[params$exp, drop = TRUE]], assay = assay, layers = c("counts", "data"))
-  VariableFeatures(object = seu, assay = assay) <- Features(seu[[assay]]) # use all features as variable features
+  VariableFeatures(object = seu, assay = assay) <- map(
+    .x = Layers(object = seu, assay = assay, search = "counts"),
+    .f = function(x, obj = seu) {
+      counts <- LayerData(object = obj, assay = assay, layer = x)
+      return(rownames(counts[rowSums(counts) > 0, ]))
+    }
+  ) %>%
+    Reduce(f = intersect, x = ., init = Features(seu[[assay]])) # use all common features as variable features (to account for different ADT panels across experiments)
   if (params$clr == "seurat") {
     seu <- seu %>%
       NormalizeData(assay = assay, normalization.method = "CLR", margin = 2, verbose = !params$quiet) %>%
