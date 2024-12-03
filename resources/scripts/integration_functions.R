@@ -114,6 +114,7 @@ scVIIntegration <- function(object,
                             normalization.method = c("LogNormalize", "SCT"),
                             dims = 1:30,
                             scale.layer = "scale.data",
+                            empirical_protein_background_prior = NULL,
                             max_epochs = NULL,
                             verbose = TRUE,
                             ...) {
@@ -163,6 +164,7 @@ scVIIntegration <- function(object,
     # get protein count matrix
     args.adata$obsm <- list(protein = as.data.frame(Matrix::t(LayerData(object = object, layer = "counts")[features, ])))
     args.setup$protein_expression_obsm_key <- "protein"
+    args.model$empirical_protein_background_prior <- if (is.null(empirical_protein_background_prior)) NULL else as.logical(empirical_protein_background_prior)
   } else {
     # get gene or peak count matrix
     args.adata$X <- scipy$sparse$csr_matrix(Matrix::t(LayerData(object = object, layer = "counts")[features, ]))
@@ -197,7 +199,7 @@ scVIIntegration <- function(object,
       as("CsparseMatrix") |>
       log1p()
     colnames(data) <- colnames(object)
-    rownames(data) <- rownames(object)
+    rownames(data) <- features
     output.list[[paste0(assay, "C")]] <- SeuratObject::CreateAssayObject(data = data)
   }
 
