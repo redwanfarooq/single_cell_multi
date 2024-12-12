@@ -111,49 +111,51 @@ params$exp <- params$exp %>% match.arg(choices = colnames(seu[[]]))
 
 # Perform normalisation and variable feature selection
 # Normalise RNA data
-logger::log_info("Normalising RNA data")
-assay <- params$rna_assay
-vars.to.regress <- NULL
-if (params$regress_percent_mitochondrial) vars.to.regress <- c(vars.to.regress, "pctMito_RNA")
-if (params$regress_cell_cycle) vars.to.regress <- c(vars.to.regress, "S.Score", "G2M.Score")
-suppressWarnings({
+if (params$rna_assay %in% Assays(seu)) {
+  logger::log_info("Normalising RNA data")
+  assay <- params$rna_assay
+  vars.to.regress <- NULL
+  if (params$regress_percent_mitochondrial) vars.to.regress <- c(vars.to.regress, "pctMito_RNA")
+  if (params$regress_cell_cycle) vars.to.regress <- c(vars.to.regress, "S.Score", "G2M.Score")
+  suppressWarnings({
+    seu <- seu %>%
+      NormalizeData(assay = assay, normalization.method = "LogNormalize", verbose = !params$quiet) %>%
+      PercentageFeatureSet(pattern = "^MT-", col.name = "pctMito_RNA") %>%
+      CellCycleScoring(s.features = cc.genes$s.genes, g2m.features = cc.genes$g2m.genes, search = TRUE, verbose = !params$quiet) %>%
+      split(f = seu[[params$exp, drop = TRUE]], assay = assay, layers = c("counts", "data")) %>%
+      FindVariableFeatures(assay = assay, nfeatures = as.integer(params$n_features), selection.method = "vst", verbose = !params$quiet) %>%
+      ScaleData(assay = assay, vars.to.regress = vars.to.regress, verbose = !params$quiet)
+  }) # suppress unhelpful warnings
+  min.depth <- map_dbl(
+    .x = Layers(object = seu, assay = assay, search = "counts"),
+    .f = function(x, obj = seu) median(colSums(LayerData(object = obj, assay = assay, layer = x)))
+  ) %>%
+    min() %>%
+    floor()
   seu <- seu %>%
-    NormalizeData(assay = assay, normalization.method = "LogNormalize", verbose = !params$quiet) %>%
-    PercentageFeatureSet(pattern = "^MT-", col.name = "pctMito_RNA") %>%
-    CellCycleScoring(s.features = cc.genes$s.genes, g2m.features = cc.genes$g2m.genes, search = TRUE, verbose = !params$quiet) %>%
-    split(f = seu[[params$exp, drop = TRUE]], assay = assay, layers = c("counts", "data")) %>%
-    FindVariableFeatures(assay = assay, nfeatures = as.integer(params$n_features), selection.method = "vst", verbose = !params$quiet) %>%
-    ScaleData(assay = assay, vars.to.regress = vars.to.regress, verbose = !params$quiet)
-}) # suppress unhelpful warnings
-min.depth <- map_dbl(
-  .x = Layers(object = seu, assay = assay, search = "counts"),
-  .f = function(x, obj = seu) median(colSums(LayerData(object = obj, assay = assay, layer = x)))
-) %>%
-  min() %>%
-  floor()
-seu <- seu %>%
-  SCTransform(
-    assay = assay,
-    variable.features.n = as.integer(params$n_features),
-    vars.to.regress = vars.to.regress,
-    vst.flavor = "v2",
-    min_cells = 0, # use all genes for normalization
-    scale_factor = min.depth, # use minimum sequencing depth to ensure corrected counts are comparable across batches
-    verbose = !params$quiet
-  ) %>%
-  SetAssayData(
-    assay = "SCT",
-    layer = "counts",
-    new.data = MatrixExtra::filterSparse(LayerData(object = ., assay = "SCT", layer = "counts"), fn = function(x) !is.nan(x))
-  ) %>%
-  SetAssayData(
-    assay = "SCT",
-    layer = "data",
-    new.data = log1p(LayerData(object = ., assay = "SCT", layer = "counts"))
-  ) # set NaN values in corrected counts matrix to 0 (from genes with zero counts in all cells in a batch)
-seu[["SCT"]] <- AddMetaData(seu[["SCT"]], seu[[assay]][[c("ensembl_id", "gene_symbol", "gene_type")]])
-for (x in c(assay, "SCT")) {
-  VariableFeatures(seu, assay = x) <- grep(pattern = params$rna_filter_features, x = VariableFeatures(seu, assay = x), value = TRUE, invert = TRUE) # remove unwanted features
+    SCTransform(
+      assay = assay,
+      variable.features.n = as.integer(params$n_features),
+      vars.to.regress = vars.to.regress,
+      vst.flavor = "v2",
+      min_cells = 0, # use all genes for normalization
+      scale_factor = min.depth, # use minimum sequencing depth to ensure corrected counts are comparable across batches
+      verbose = !params$quiet
+    ) %>%
+    SetAssayData(
+      assay = "SCT",
+      layer = "counts",
+      new.data = MatrixExtra::filterSparse(LayerData(object = ., assay = "SCT", layer = "counts"), fn = function(x) !is.nan(x))
+    ) %>%
+    SetAssayData(
+      assay = "SCT",
+      layer = "data",
+      new.data = log1p(LayerData(object = ., assay = "SCT", layer = "counts"))
+    ) # set NaN values in corrected counts matrix to 0 (from genes with zero counts in all cells in a batch)
+  seu[["SCT"]] <- AddMetaData(seu[["SCT"]], seu[[assay]][[c("ensembl_id", "gene_symbol", "gene_type")]])
+  for (x in c(assay, "SCT")) {
+    VariableFeatures(seu, assay = x) <- grep(pattern = params$rna_filter_features, x = VariableFeatures(seu, assay = x), value = TRUE, invert = TRUE) # remove unwanted features
+  }
 }
 
 # Normalise ATAC data
@@ -192,7 +194,14 @@ if (params$adt_assay %in% Assays(seu)) {
   params$clr <- params$clr %>% match.arg(choices = c("seurat", "original"))
   assay <- params$adt_assay
   seu <- split(seu, f = seu[[params$exp, drop = TRUE]], assay = assay, layers = c("counts", "data"))
-  VariableFeatures(object = seu, assay = assay) <- Features(seu[[assay]]) # use all features as variable features
+  VariableFeatures(object = seu, assay = assay) <- map(
+    .x = Layers(object = seu, assay = assay, search = "counts"),
+    .f = function(x, obj = seu) {
+      counts <- LayerData(object = obj, assay = assay, layer = x)
+      return(rownames(counts[rowSums(counts) > 0, ]))
+    }
+  ) %>%
+    Reduce(f = intersect, x = ., init = Features(seu[[assay]])) # use all common features as variable features (to account for different ADT panels across experiments)
   if (params$clr == "seurat") {
     seu <- seu %>%
       NormalizeData(assay = assay, normalization.method = "CLR", margin = 2, verbose = !params$quiet) %>%

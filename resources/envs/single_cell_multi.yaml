@@ -1,7 +1,5 @@
 name: single_cell_multi
 channels:
-  - bioturing
-  - rschauner
   - bioconda
   - conda-forge
   - defaults
@@ -17,7 +15,7 @@ dependencies:
   - asttokens=2.4.1
   - async-lru=2.0.4
   - attrs=24.2.0
-  - babel=2.14.0
+  - babel=2.16.0
   - beautifulsoup4=4.12.3
   - binutils=2.43
   - binutils_impl_linux-64=2.43
@@ -35,8 +33,6 @@ dependencies:
   - bioconductor-biocsingular=1.18.0
   - bioconductor-biomart=2.58.0
   - bioconductor-biostrings=2.70.1
-  - bioconductor-biovizbase=1.50.0
-  - bioconductor-bsgenome=1.70.1
   - bioconductor-data-packages=20231203
   - bioconductor-delayedarray=0.28.0
   - bioconductor-delayedmatrixstats=1.24.0
@@ -71,14 +67,13 @@ dependencies:
   - bioconductor-sparsearray=1.2.2
   - bioconductor-sparsematrixstats=1.14.0
   - bioconductor-summarizedexperiment=1.32.0
-  - bioconductor-variantannotation=1.48.1
   - bioconductor-xvector=0.42.0
   - bioconductor-zlibbioc=1.48.0
-  - bleach=6.1.0
+  - bleach=6.2.0
   - brotli-python=1.1.0
   - bwidget=1.9.16
   - bzip2=1.0.8
-  - c-ares=1.34.2
+  - c-ares=1.34.3
   - c-compiler=1.8.0
   - ca-certificates=2024.9.24
   - cached-property=1.5.2
@@ -90,18 +85,17 @@ dependencies:
   - comm=0.2.2
   - curl=8.10.1
   - cxx-compiler=1.8.0
-  - debugpy=1.8.7
+  - debugpy=1.8.9
   - decorator=5.1.1
   - defusedxml=0.7.1
   - entrypoints=0.4
   - exceptiongroup=1.2.2
   - executing=2.1.0
-  - expat=2.6.3
   - font-ttf-dejavu-sans-mono=2.37
   - font-ttf-inconsolata=3.000
   - font-ttf-source-code-pro=2.038
   - font-ttf-ubuntu=0.83
-  - fontconfig=2.14.2
+  - fontconfig=2.15.0
   - fonts-conda-ecosystem=1
   - fonts-conda-forge=1
   - fqdn=1.5.1
@@ -111,7 +105,6 @@ dependencies:
   - gcc_impl_linux-64=13.3.0
   - gcc_linux-64=13.3.0
   - gfortran_impl_linux-64=13.3.0
-  - gfortran_linux-64=13.3.0
   - glpk=5.0
   - gmp=6.3.0
   - graphite2=1.3.14
@@ -124,22 +117,21 @@ dependencies:
   - harfbuzz=9.0.0
   - hdf5=1.14.4
   - hpack=4.0.0
-  - httpcore=1.0.6
+  - httpcore=1.0.7
   - httpx=0.27.2
   - hyperframe=6.0.1
   - icu=75.1
   - idna=3.10
   - importlib-metadata=8.5.0
-  - importlib_metadata=8.5.0
   - importlib_resources=6.4.5
   - ipykernel=6.29.5
-  - ipython=8.28.0
+  - ipython=8.29.0
   - ipywidgets=8.1.5
   - isoduration=20.11.0
-  - jedi=0.19.1
+  - jedi=0.19.2
   - jinja2=3.1.4
   - jq=1.7.1
-  - json5=0.9.25
+  - json5=0.9.28
   - jsonpointer=3.0.0
   - jsonschema=4.23.0
   - jsonschema-specifications=2024.10.1
@@ -152,7 +144,7 @@ dependencies:
   - jupyter_events=0.10.0
   - jupyter_server=2.14.2
   - jupyter_server_terminals=0.5.3
-  - jupyterlab=4.2.5
+  - jupyterlab=4.3.1
   - jupyterlab_pygments=0.3.0
   - jupyterlab_server=2.27.3
   - jupyterlab_widgets=3.0.13
@@ -168,7 +160,7 @@ dependencies:
   - libdeflate=1.22
   - libedit=3.1.20230828
   - libev=4.33
-  - libexpat=2.6.3
+  - libexpat=2.6.4
   - libffi=3.4.4
   - libgcc=14.2.0
   - libgcc-devel_linux-64=13.3.0
@@ -176,36 +168,35 @@ dependencies:
   - libgfortran=14.2.0
   - libgfortran-ng=14.2.0
   - libgfortran5=14.2.0
-  - libgit2=1.8.1
+  - libgit2=1.8.4
   - libglib=2.82.2
   - libgomp=14.2.0
   - libiconv=1.17
   - libjpeg-turbo=3.0.3
   - liblapack=3.9.0
-  - libnghttp2=1.58.0
+  - libnghttp2=1.64.0
   - libnsl=2.0.1
-  - libopenblas=0.3.27
+  - libopenblas=0.3.28
   - libpng=1.6.44
   - libsanitizer=13.3.0
   - libsodium=1.0.20
-  - libsqlite=3.46.1
-  - libssh2=1.11.0
+  - libsqlite=3.47.0
+  - libssh2=1.11.1
   - libstdcxx=14.2.0
   - libstdcxx-devel_linux-64=13.3.0
   - libstdcxx-ng=14.2.0
   - libtiff=4.7.0
   - libuuid=2.38.1
-  - libuv=1.49.1
+  - libuv=1.49.2
   - libwebp-base=1.4.0
   - libxcb=1.17.0
   - libxcrypt=4.4.36
-  - libxml2=2.12.7
+  - libxml2=2.13.5
   - libzlib=1.3.1
-  - loguru=0.7.2
   - lz4-c=1.9.4
   - macs2=2.2.9.1
   - make=4.4.1
-  - markupsafe=3.0.1
+  - markupsafe=3.0.2
   - matplotlib-inline=0.1.7
   - mistune=3.0.2
   - nbclient=0.10.0
@@ -213,13 +204,13 @@ dependencies:
   - nbformat=5.10.4
   - ncurses=6.5
   - nest-asyncio=1.6.0
-  - notebook=7.2.2
+  - notebook=7.0.6
   - notebook-shim=0.2.4
   - numpy=1.26.4
   - oniguruma=6.9.9
-  - openssl=3.3.2
+  - openssl=3.4.0
   - overrides=7.7.0
-  - packaging=24.1
+  - packaging=24.2
   - pandoc=3.5
   - pandocfilters=1.5.0
   - pango=1.54.0
@@ -227,14 +218,14 @@ dependencies:
   - pcre2=10.44
   - pexpect=4.9.0
   - pickleshare=0.7.5
-  - pip=24.2
+  - pip=24.3.1
   - pixman=0.43.2
   - pkgutil-resolve-name=1.3.10
   - platformdirs=4.3.6
   - prometheus_client=0.21.0
   - prompt-toolkit=3.0.48
   - prompt_toolkit=3.0.48
-  - psutil=6.0.0
+  - psutil=6.1.0
   - pthread-stubs=0.4
   - ptyprocess=0.7.0
   - pure_eval=0.2.3
@@ -256,12 +247,10 @@ dependencies:
   - r-base=4.3.3
   - r-base64enc=0.1_3
   - r-bh=1.84.0_0
-  - r-biocmanager=1.30.25
   - r-bit=4.5.0
   - r-bit64=4.5.2
   - r-bitops=1.0_9
   - r-blob=1.2.4
-  - r-bpcells=0.2.0
   - r-brew=1.0_10
   - r-brio=1.1.5
   - r-broom=1.0.7
@@ -270,7 +259,6 @@ dependencies:
   - r-callr=3.7.6
   - r-catools=1.18.3
   - r-cellranger=1.1.0
-  - r-checkmate=2.3.2
   - r-cli=3.6.3
   - r-clipr=0.8.0
   - r-cluster=2.1.6
@@ -292,7 +280,6 @@ dependencies:
   - r-deldir=2.0_4
   - r-desc=1.4.3
   - r-devtools=2.4.5
-  - r-dichromat=2.0_0.1
   - r-diffobj=0.3.5
   - r-digest=0.6.37
   - r-docopt=0.7.1
@@ -312,12 +299,10 @@ dependencies:
   - r-fitdistrplus=1.2_1
   - r-float=0.3_2
   - r-fnn=1.1.4.1
-  - r-fontawesome=0.5.2
+  - r-fontawesome=0.5.3
   - r-forcats=1.0.0
-  - r-foreign=0.8_87
   - r-formatr=1.14
-  - r-formula=1.2_5
-  - r-fs=1.6.4
+  - r-fs=1.6.5
   - r-furrr=0.3.1
   - r-futile.logger=1.4.3
   - r-futile.options=1.0.1
@@ -338,50 +323,45 @@ dependencies:
   - r-googlesheets4=1.1.1
   - r-gplots=3.2.0
   - r-gridextra=2.3
-  - r-gtable=0.3.5
+  - r-gtable=0.3.6
   - r-gtools=3.9.5
   - r-harmony=1.2.1
   - r-haven=2.5.4
   - r-hdf5r=1.3.11
   - r-here=1.0.1
-  - r-hexbin=1.28.4
+  - r-hexbin=1.28.5
   - r-highr=0.11
-  - r-hmisc=5.1_3
   - r-hms=1.1.3
-  - r-htmltable=2.4.3
   - r-htmltools=0.5.8.1
   - r-htmlwidgets=1.6.4
   - r-httpuv=1.6.15
   - r-httr=1.4.7
-  - r-httr2=1.0.5
+  - r-httr2=1.0.6
   - r-ica=1.0_3
   - r-ids=1.0.1
   - r-igraph=2.0.3
   - r-ini=0.3.1
-  - r-interp=1.1_6
   - r-irdisplay=1.1
   - r-irkernel=1.3.2
   - r-irlba=2.3.5.1
   - r-isoband=0.2.7
-  - r-jpeg=0.1_10
   - r-jquerylib=0.1.4
   - r-jsonlite=1.8.9
   - r-kernsmooth=2.23_24
-  - r-knitr=1.48
+  - r-knitr=1.49
   - r-labeling=0.4.3
   - r-lambda.r=1.2.4
   - r-languageserver=0.3.16
   - r-later=1.3.2
   - r-lattice=0.22_6
-  - r-latticeextra=0.6_30
   - r-lazyeval=0.2.2
   - r-leiden=0.4.3.1
   - r-lifecycle=1.0.4
   - r-lintr=3.1.2
   - r-listenv=0.9.1
   - r-lmtest=0.9_40
-  - r-locfit=1.5_9.9
-  - r-logger=0.3.0
+  - r-locfit=1.5_9.10
+  - r-logger=0.4.0
   - r-lubridate=1.9.3
   - r-magrittr=2.0.3
   - r-mass=7.3_60.0.1
@@ -395,14 +375,13 @@ dependencies:
   - r-modelr=0.1.11
   - r-munsell=0.5.1
   - r-nlme=3.1_165
-  - r-nnet=7.3_19
   - r-openssl=2.2.2
-  - r-parallelly=1.38.0
+  - r-parallelly=1.39.0
   - r-patchwork=1.3.0
   - r-pbapply=1.7_2
   - r-pbdzmq=0.3_13
   - r-pillar=1.9.0
-  - r-pkgbuild=1.4.4
+  - r-pkgbuild=1.4.5
   - r-pkgconfig=2.0.3
   - r-pkgdown=2.1.1
   - r-pkgload=1.4.0
@@ -416,14 +395,14 @@ dependencies:
   - r-processx=3.8.4
   - r-profvis=0.4.0
   - r-progress=1.2.3
-  - r-progressr=0.14.0
+  - r-progressr=0.15.1
   - r-promises=1.3.0
-  - r-ps=1.8.0
+  - r-ps=1.8.1
   - r-purrr=1.0.2
   - r-qs=0.26.3
   - r-r.cache=0.16.0
   - r-r.methodss3=1.8.2
-  - r-r.oo=1.26.0
+  - r-r.oo=1.27.0
   - r-r.utils=2.12.3
   - r-r6=2.5.1
   - r-ragg=1.3.3
@@ -432,9 +411,9 @@ dependencies:
   - r-rappdirs=0.3.3
   - r-rcmdcheck=1.4.0
   - r-rcolorbrewer=1.1_3
-  - r-rcpp=1.0.13
+  - r-rcpp=1.0.13_1
   - r-rcppannoy=0.0.22
-  - r-rcpparmadillo=14.0.2_1
+  - r-rcpparmadillo=14.2.0_1
   - r-rcppeigen=0.3.4.0.2
   - r-rcpphnsw=0.6.0
   - r-rcppparallel=5.1.9
@@ -451,19 +430,18 @@ dependencies:
   - r-reprex=2.1.1
   - r-reshape2=1.4.4
   - r-restfulr=0.0.15
-  - r-reticulate=1.39.0
+  - r-reticulate=1.40.0
   - r-rex=1.2.1
   - r-rhpcblasctl=0.23_42
   - r-rjson=0.2.23
   - r-rlang=1.1.4
-  - r-rmarkdown=2.28
+  - r-rmarkdown=2.29
   - r-rocr=1.0_11
   - r-roxygen2=7.3.2
-  - r-rpart=4.1.23
   - r-rprojroot=2.0.4
   - r-rspectra=0.16_2
-  - r-rsqlite=2.3.7
-  - r-rstudioapi=0.16.0
+  - r-rsqlite=2.3.8
+  - r-rstudioapi=0.17.1
   - r-rsvd=1.0.5
   - r-rtsne=0.17
   - r-rversions=2.1.2
@@ -476,7 +454,6 @@ dependencies:
   - r-sessioninfo=1.2.2
   - r-seurat=5.1.0
   - r-seuratobject=5.0.2
-  - r-seuratwrappers=0.3.1
   - r-shiny=1.9.1
   - r-signac=1.14.0
   - r-sitmo=2.0.2
@@ -484,12 +461,13 @@ dependencies:
   - r-sourcetools=0.1.7_1
   - r-sp=2.1_4
   - r-spam=2.11_0
-  - r-spatstat.data=3.1_2
-  - r-spatstat.explore=3.2_6
-  - r-spatstat.geom=3.2_9
-  - r-spatstat.random=3.2_3
+  - r-spatstat.data=3.1_4
+  - r-spatstat.explore=3.3_3
+  - r-spatstat.geom=3.3_4
+  - r-spatstat.random=3.3_2
   - r-spatstat.sparse=3.1_0
-  - r-spatstat.utils=3.1_0
+  - r-spatstat.univar=3.1_1
+  - r-spatstat.utils=3.1_1
   - r-statmod=1.5.0
   - r-stringfish=0.16.0
   - r-stringi=1.8.4
@@ -506,7 +484,7 @@ dependencies:
   - r-tidyselect=1.2.1
   - r-tidyverse=2.0.0
   - r-timechange=0.3.0
-  - r-tinytex=0.53
+  - r-tinytex=0.54
   - r-tzdb=0.4.0
   - r-urlchecker=1.0.1
   - r-usethis=3.0.0
@@ -514,12 +492,11 @@ dependencies:
   - r-uuid=1.2_1
   - r-uwot=0.1.16
   - r-vctrs=0.6.5
-  - r-viridis=0.6.5
   - r-viridislite=0.4.2
   - r-vroom=1.6.5
-  - r-waldo=0.5.3
+  - r-waldo=0.6.1
   - r-whisker=0.4.1
-  - r-withr=3.0.1
+  - r-withr=3.0.2
   - r-xfun=0.48
   - r-xml=3.99_0.17
   - r-xml2=1.3.6
@@ -534,10 +511,10 @@ dependencies:
   - requests=2.32.3
   - rfc3339-validator=0.1.4
   - rfc3986-validator=0.1.1
-  - rpds-py=0.20.0
+  - rpds-py=0.21.0
   - sed=4.8
   - send2trash=1.8.3
-  - setuptools=75.1.0
+  - setuptools=75.6.0
   - six=1.16.0
   - sniffio=1.3.1
   - soupsieve=2.5
@@ -545,11 +522,11 @@ dependencies:
   - sysroot_linux-64=2.17
   - tapi=1300.6.5
   - terminado=0.18.1
-  - tinycss2=1.3.0
+  - tinycss2=1.4.0
   - tk=8.6.13
   - tktable=2.10
   - toml=0.10.2
-  - tomli=2.0.2
+  - tomli=2.1.0
   - tomlkit=0.13.2
   - tornado=6.4.1
   - traitlets=5.14.3
@@ -563,7 +540,7 @@ dependencies:
   - webcolors=24.8.0
   - webencodings=0.5.1
   - websocket-client=1.8.0
-  - wheel=0.44.0
+  - wheel=0.45.1
   - widgetsnbextension=4.0.13
   - xmltodict=0.14.2
   - xorg-libice=1.1.1
@@ -573,44 +550,43 @@ dependencies:
   - xorg-libxdmcp=1.1.5
   - xorg-libxext=1.3.6
   - xorg-libxrender=0.9.11
-  - xorg-libxt=1.3.0
+  - xorg-libxt=1.3.1
   - xorg-xorgproto=2024.1
   - xz=5.4.6
   - yaml=0.2.5
   - yq=3.4.3
   - zeromq=4.3.5
-  - zipp=3.20.2
+  - zipp=3.21.0
   - zlib=1.3.1
   - zstandard=0.23.0
   - zstd=1.5.6
   - pip:
       - absl-py==2.1.0
       - aiohappyeyeballs==2.4.3
-      - aiohttp==3.10.10
+      - aiohttp==3.11.7
       - aiosignal==1.3.1
-      - anndata==0.10.9
-      - array-api-compat==1.9
+      - anndata==0.11.1
+      - array-api-compat==1.9.1
       - chex==0.1.87
-      - contextlib2==21.6.0
       - docrep==0.3.2
       - etils==1.10.0
       - filelock==3.16.1
-      - flax==0.10.0
-      - frozenlist==1.4.1
-      - fsspec==2024.9.0
-      - grpcio==1.67.0
+      - flax==0.10.2
+      - frozenlist==1.5.0
+      - fsspec==2024.10.0
+      - grpcio==1.68.0
       - h5py==3.12.1
       - humanize==4.11.0
-      - jax==0.4.34
-      - jaxlib==0.4.34
+      - jax==0.4.35
+      - jaxlib==0.4.35
       - joblib==1.4.2
       - lightning==2.4.0
-      - lightning-utilities==0.11.8
+      - lightning-utilities==0.11.9
       - llvmlite==0.43.0
       - markdown==3.7
       - markdown-it-py==3.0.0
       - mdurl==0.1.2
-      - ml-collections==0.1.1
+      - ml-collections==1.0.0
       - ml-dtypes==0.5.0
       - mpmath==1.3.0
       - msgpack==1.1.0
@@ -618,7 +594,7 @@ dependencies:
       - multidict==6.1.0
       - multipledispatch==1.0.0
       - natsort==8.4.0
-      - networkx==3.4.1
+      - networkx==3.4.2
       - numba==0.60.0
       - numpyro==0.15.3
       - nvidia-cublas-cu12==12.4.5.8
@@ -634,30 +610,31 @@ dependencies:
       - nvidia-nvjitlink-cu12==12.4.127
       - nvidia-nvtx-cu12==12.4.127
       - opt-einsum==3.4.0
-      - optax==0.2.3
-      - orbax-checkpoint==0.7.0
+      - optax==0.2.4
+      - orbax-checkpoint==0.10.1
       - pandas==2.2.3
       - propcache==0.2.0
-      - protobuf==5.28.2
+      - protobuf==5.28.3
       - pyro-api==0.1.2
       - pyro-ppl==1.9.1
       - pytorch-lightning==2.4.0
-      - rich==13.9.2
+      - rich==13.9.4
       - scikit-learn==1.5.2
       - scipy==1.14.1
       - scvi-tools==1.2.0
+      - simplejson==3.19.3
       - sparse==0.15.4
       - sympy==1.13.1
       - tensorboard==2.18.0
       - tensorboard-data-server==0.7.2
-      - tensorstore==0.1.66
+      - tensorstore==0.1.68
       - threadpoolctl==3.5.0
       - toolz==1.0.0
-      - torch==2.5.0
-      - torchmetrics==1.4.3
-      - tqdm==4.66.5
+      - torch==2.5.1
+      - torchmetrics==1.6.0
+      - tqdm==4.67.0
       - triton==3.1.0
       - tzdata==2024.2
-      - werkzeug==3.0.4
-      - xarray==2024.9.0
-      - yarl==1.15.4
+      - werkzeug==3.1.3
+      - xarray==2024.11.0
+      - yarl==1.18.0

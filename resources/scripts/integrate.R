@@ -79,7 +79,6 @@ suppressPackageStartupMessages({
   library(purrr)
   library(future)
   library(Seurat)
-  library(SeuratWrappers)
   library(Signac)
 })
 
@@ -126,26 +125,28 @@ for (x in Assays(seu)) {
 
 # Perform PCA and integration steps
 # RNA data
-logger::log_info("Performing PCA for RNA data")
-params$normalisation_method <- params$normalisation_method %>% match.arg(choices = c("LogNormalize", "SCT"))
-assay <- if (params$normalisation_method == "SCT") "SCT" else params$rna_assay
-seu <- RunPCA(object = seu, assay = assay, reduction.name = "pca", reduction.key = "PC_", verbose = FALSE)
-if (!is.null(params$integration_method)) {
-  logger::log_info("Integrating RNA data across {length(unique(seu$batch))} batches")
-  args <- list(
-    object = "seu",
-    assay = "assay",
-    method = "match.fun(params$integration_method)",
-    normalization.method = "params$normalisation_method",
-    orig.reduction = "'pca'",
-    new.reduction = "'integrated.rna'",
-    features = "VariableFeatures(object = seu, assay = assay)",
-    dims = "1:50",
-    verbose = "!params$quiet"
-  ) %>%
-    paste(names(.), ., sep = " = ", collapse = ", ") %>%
-    paste(., params$integration_args, sep = ", ")
-  seu <- eval(expr = parse(text = glue::glue("IntegrateLayers({args})")))
+if (params$rna_assay %in% Assays(seu)) {
+  logger::log_info("Performing PCA for RNA data")
+  params$normalisation_method <- params$normalisation_method %>% match.arg(choices = c("LogNormalize", "SCT"))
+  assay <- if (params$normalisation_method == "SCT") "SCT" else params$rna_assay
+  seu <- RunPCA(object = seu, assay = assay, reduction.name = "pca", reduction.key = "PC_", verbose = FALSE)
+  if (!is.null(params$integration_method)) {
+    logger::log_info("Integrating RNA data across {length(unique(seu$batch))} batches")
+    args <- list(
+      object = "seu",
+      assay = "assay",
+      method = "match.fun(params$integration_method)",
+      normalization.method = "params$normalisation_method",
+      orig.reduction = "'pca'",
+      new.reduction = "'integrated.rna'",
+      features = "VariableFeatures(object = seu, assay = assay)",
+      dims = "1:50",
+      verbose = "!params$quiet"
+    ) %>%
+      paste(names(.), ., sep = " = ", collapse = ", ") %>%
+      paste(., params$integration_args, sep = ", ")
+    seu <- eval(expr = parse(text = glue::glue("IntegrateLayers({args})")))
+  }
 }
 
 # ATAC data
@@ -158,7 +159,10 @@ if (params$atac_assay %in% Assays(seu)) {
     # Temporarily switch ATAC assay from ChromatinAssay to Assay v5 to enable use of IntegrateLayers
     suppressWarnings({
       tmp <- seu[[assay]]
-      seu[[assay]] <- CreateAssay5Object(data = GetAssayData(object = seu[[assay]], slot = "data")) %>%
+      seu[[assay]] <- CreateAssay5Object(
+        counts = GetAssayData(object = seu[[assay]], slot = "counts"),
+        data = GetAssayData(object = seu[[assay]], slot = "data")
+      ) %>%
         split(f = seu$batch)
       LayerData(object = seu, assay = assay, layer = "scale.data") <- SparseEmptyMatrix(nrow = nrow(tmp), ncol = ncol(tmp), rownames = rownames(tmp), colnames = colnames(tmp))
     }) # suppress unhelpful warnings
@@ -201,7 +205,9 @@ if (params$adt_assay %in% Assays(seu)) {
       paste(names(.), ., sep = " = ", collapse = ", ") %>%
       paste(., params$integration_args, sep = ", ")
     seu <- eval(expr = parse(text = glue::glue("IntegrateLayers({args})"))) %>% suppressWarnings() # suppress unhelpful warnings
-    seu[[paste0(assay, "C")]] <- CreateAssayObject(data = t(Embeddings(seu, reduction = "integrated.adt") %*% t(Loadings(seu, reduction = "integrated.adt"))))
+    if (all(dim(Loadings(seu, reduction = "integrated.adt")) > 0)) {
+      seu[[paste0(assay, "C")]] <- CreateAssayObject(data = t(Embeddings(seu, reduction = "integrated.adt") %*% t(Loadings(seu, reduction = "integrated.adt"))))
+    }
     seu <- ScaleData(object = seu, assay = paste0(assay, "C"))
   }
 }
