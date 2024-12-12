@@ -76,6 +76,5 @@ set-resources:
     # mem: 100GiB
     runtime: 3h
   integrate:
-    partition: gpu
     # mem: 100GiB
     runtime: 3h
