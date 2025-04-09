@@ -77,4 +77,4 @@ set-resources:
     runtime: 3h
   integrate:
     # mem: 100GiB
-    runtime: 3h
+    runtime: 6h
