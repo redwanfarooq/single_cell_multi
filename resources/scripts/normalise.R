@@ -120,8 +120,8 @@ if (params$rna_assay %in% Assays(seu)) {
   suppressWarnings({
     seu <- seu %>%
       NormalizeData(assay = assay, normalization.method = "LogNormalize", verbose = !params$quiet) %>%
-      PercentageFeatureSet(pattern = "^MT-", col.name = "pctMito_RNA") %>%
-      CellCycleScoring(s.features = cc.genes$s.genes, g2m.features = cc.genes$g2m.genes, search = TRUE, verbose = !params$quiet) %>%
+      PercentageFeatureSet(assay = assay, pattern = "^MT-", col.name = "pctMito_RNA") %>%
+      CellCycleScoring(assay = assay, s.features = cc.genes$s.genes, g2m.features = cc.genes$g2m.genes, search = TRUE, verbose = !params$quiet) %>%
       split(f = seu[[params$exp, drop = TRUE]], assay = assay, layers = c("counts", "data")) %>%
       FindVariableFeatures(assay = assay, nfeatures = as.integer(params$n_features), selection.method = "vst", verbose = !params$quiet) %>%
       ScaleData(assay = assay, vars.to.regress = vars.to.regress, verbose = !params$quiet)
