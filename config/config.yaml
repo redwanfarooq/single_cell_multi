@@ -68,7 +68,7 @@ module: default
 # --------------------------------------------------
 # REQUIRED
 # Output directories
-output_dir: /project/fuggerlab/rfarooq/project/ms_snp_multiome/data/processed/atac/test_03/multi
+output_dir: /project/fuggerlab/rfarooq/project/ms_snp_multiome/data/processed/gex_atac/test_04/multi
 
 # If 'scripts_dir' not specified, defaults to
 # 'resources/scripts'
@@ -102,15 +102,15 @@ input: files.tsv
 # Parameters marked ** can optionally be specified as a list (will iterate over each unique parameter combination)
 # Global parameters
 format: qs # default: qs; options: qs, rds
-# rna-assay: RNA # default: RNA; RNA assay name
+rna-assay: RNA # default: RNA; RNA assay name
 atac-assay: ATAC # default: ATAC; ATAC assay name
 # adt-assay: ADT # default: ADT; ADT assay name
 # merge.R
-# gene-types: # * default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl gene biotypes to keep
-#   - protein_coding
-#   - lincRNA
-#   - IG_C_gene
-#   - TR_C_gene
+gene-types: # * default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl gene biotypes to keep
+  - protein_coding
+  - lincRNA
+  - IG_C_gene
+  - TR_C_gene
 peak-method: # ** default: null; options: bulk, fixed, disjoin, reduce; method to select joint ATAC peaks across samples
   reduce
 binarize: # ** default: false; binarize ATAC counts
@@ -123,20 +123,20 @@ n-features: # ** default: 3000; maximum number of variable features to select
   3000
 # clr: # ** default: seurat; options: seurat, original; centred-log ratio (CLR) transformation method for ADT data
 #   seurat
-# regress-percent-mitochondrial: # ** default: false; regress out percentage mitochondrial gene expression
-#   true
-# regress-cell-cycle: # ** default: false; regress out cell cycle scores
-#   true
+regress-percent-mitochondrial: # ** default: false; regress out percentage mitochondrial gene expression
+  true
+regress-cell-cycle: # ** default: false; regress out cell cycle scores
+  true
 exp: orig.ident # default: orig.ident; name of metadata field specifying original experiment
-# rna-filter-features: ^MT-|^RP[SL] # default: ^MT-|^RP[SL]; regular expression pattern to filter RNA variable features (matching features will be removed)
+rna-filter-features: ^MT-|^RP[SL] # default: ^MT-|^RP[SL]; regular expression pattern to filter RNA variable features (matching features will be removed)
 atac-filter-features: ^chrM|^chrY # default: ^chrM|^chrY; regular expression pattern to filter ATAC variable features (matching features will be removed)
 # integrate.R
 batch: # * default: orig.ident; name(s) of metadata field(s) to use for batch variable
   - orig.ident
-# normalisation-method: # ** default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
-#   LogNormalize
+normalisation-method: # ** default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
+  LogNormalize
 integration-method: # ** default: null; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
-  harmony
+  null
 integration-args: # additional arguments to pass to each integration method (to prevent parsing errors, use ONLY double quotes within the arguments)
   rpca: null
   jpca: null
