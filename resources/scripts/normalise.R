@@ -126,11 +126,11 @@ if (params$rna_assay %in% Assays(seu)) {
       FindVariableFeatures(assay = assay, nfeatures = as.integer(params$n_features), selection.method = "vst", verbose = !params$quiet) %>%
       ScaleData(assay = assay, vars.to.regress = vars.to.regress, verbose = !params$quiet)
   }) # suppress unhelpful warnings
-  min.depth <- map_dbl(
+  median.depth <- map_dbl(
     .x = Layers(object = seu, assay = assay, search = "counts"),
     .f = function(x, obj = seu) median(colSums(LayerData(object = obj, assay = assay, layer = x)))
   ) %>%
-    min() %>%
+    median() %>%
     floor()
   seu <- seu %>%
     SCTransform(
@@ -139,7 +139,7 @@ if (params$rna_assay %in% Assays(seu)) {
       vars.to.regress = vars.to.regress,
       vst.flavor = "v2",
       min_cells = 0, # use all genes for normalization
-      scale_factor = min.depth, # use minimum sequencing depth to ensure corrected counts are comparable across batches
+      scale_factor = median.depth, # use median sequencing depth to ensure corrected counts are comparable across batches
       verbose = !params$quiet
     ) %>%
     SetAssayData(
