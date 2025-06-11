@@ -120,17 +120,17 @@ if (params$rna_assay %in% Assays(seu)) {
   suppressWarnings({
     seu <- seu %>%
       NormalizeData(assay = assay, normalization.method = "LogNormalize", verbose = !params$quiet) %>%
-      PercentageFeatureSet(pattern = "^MT-", col.name = "pctMito_RNA") %>%
-      CellCycleScoring(s.features = cc.genes$s.genes, g2m.features = cc.genes$g2m.genes, search = TRUE, verbose = !params$quiet) %>%
+      PercentageFeatureSet(assay = assay, pattern = "^MT-", col.name = "pctMito_RNA") %>%
+      CellCycleScoring(assay = assay, s.features = cc.genes$s.genes, g2m.features = cc.genes$g2m.genes, search = TRUE, verbose = !params$quiet) %>%
       split(f = seu[[params$exp, drop = TRUE]], assay = assay, layers = c("counts", "data")) %>%
       FindVariableFeatures(assay = assay, nfeatures = as.integer(params$n_features), selection.method = "vst", verbose = !params$quiet) %>%
       ScaleData(assay = assay, vars.to.regress = vars.to.regress, verbose = !params$quiet)
   }) # suppress unhelpful warnings
-  min.depth <- map_dbl(
+  median.depth <- map_dbl(
     .x = Layers(object = seu, assay = assay, search = "counts"),
     .f = function(x, obj = seu) median(colSums(LayerData(object = obj, assay = assay, layer = x)))
   ) %>%
-    min() %>%
+    median() %>%
     floor()
   seu <- seu %>%
     SCTransform(
@@ -139,7 +139,7 @@ if (params$rna_assay %in% Assays(seu)) {
       vars.to.regress = vars.to.regress,
       vst.flavor = "v2",
       min_cells = 0, # use all genes for normalization
-      scale_factor = min.depth, # use minimum sequencing depth to ensure corrected counts are comparable across batches
+      scale_factor = median.depth, # use median sequencing depth to ensure corrected counts are comparable across batches
       verbose = !params$quiet
     ) %>%
     SetAssayData(
