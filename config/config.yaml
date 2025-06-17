@@ -134,7 +134,7 @@ rna-filter-features: ^MT-|^RP[SL] # default: ^MT-|^RP[SL]; regular expression pa
 batch: # * default: orig.ident; name(s) of metadata field(s) to use for batch variable
   - orig.ident
 normalisation-method: # ** default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
-  SCT
+  LogNormalize
 integration-method: # ** default: null; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
   - harmony
   - scvi
