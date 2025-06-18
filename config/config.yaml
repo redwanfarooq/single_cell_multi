@@ -116,14 +116,13 @@ peak-method: # ** default: null; options: bulk, fixed, disjoin, reduce; method t
 binarize: # ** default: false; binarize ATAC counts
   false
 downsample: # ** default: false; downsample counts to match sequencing depth across libraries
-  true
+  false
 filter-cells: hash_id == "Control" # default: null; logical expression to filter cells based on metadata columns (matching cells will be discarded; to prevent parsing errors, use ONLY double quotes within the expression)
 # normalise.R
 n-features: # ** default: 3000; maximum number of variable features to select
-  3000
+  5000
 clr: # ** default: seurat; options: seurat, original; centred-log ratio (CLR) transformation method for ADT data
-  - seurat
-  - original
+  original
 regress-percent-mitochondrial: # ** default: false; regress out percentage mitochondrial gene expression
   true
 regress-cell-cycle: # ** default: false; regress out cell cycle scores
@@ -135,16 +134,14 @@ atac-filter-features: ^chrM|^chrY # default: ^chrM|^chrY; regular expression pat
 batch: # * default: orig.ident; name(s) of metadata field(s) to use for batch variable
   - orig.ident
 normalisation-method: # ** default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
-  SCT
+  LogNormalize
 integration-method: # ** default: null; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
-  - rpca
-  - fastmnn
   - harmony
   - scvi
 integration-args: # additional arguments to pass to each integration method (to prevent parsing errors, use ONLY double quotes within the arguments)
-  rpca: sample.tree = build.sample.tree(list(1:3, 4:6, 7:9, 10:12, 13:15, 16:18, 19:21, 22:24, 25:27, 28:30, 31:33, 34:36, 37:39, 40:42))
+  rpca: null
   jpca: null
   cca: null
-  fastmnn: k = 50, merge.order = list(1:3, 4:6, 7:9, 10:12, 13:15, 16:18, 19:21, 22:24, 25:27, 28:30, 31:33, 34:36, 37:39, 40:42)
+  fastmnn: null
   harmony: meta_data = seu[[]], vars_use = c("donor", "batch")
   scvi: n_layers = 2, n_latent = 50, empirical_protein_background_prior = FALSE, max_epochs = 200
