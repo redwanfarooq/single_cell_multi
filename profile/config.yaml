@@ -74,7 +74,7 @@ set-resources:
     runtime: 1h
   normalise:
     # mem: 100GiB
-    runtime: 3h
+    runtime: 24h
   integrate:
     # mem: 100GiB
-    runtime: 3h
+    runtime: 24h
