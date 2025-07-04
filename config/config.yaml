@@ -60,7 +60,7 @@
 #       - Compute corrected values for ADT data by
 #         projecting integrated embeddings back into
 #         normalised count space
-module: 
+module: default
 
 
 # --------------------------------------------------
@@ -68,7 +68,7 @@ module:
 # --------------------------------------------------
 # REQUIRED
 # Output directories
-output_dir: /project/fuggerlab/rfarooq/project/project_name/data/processed/multi
+output_dir: /project/fuggerlab/rfarooq/project/natalizumab_multiome/data/processed/multi
 
 # If 'scripts_dir' not specified, defaults to
 # 'resources/scripts'
@@ -103,7 +103,7 @@ input: files.tsv
 # Global parameters
 format: qs # default: qs; options: qs, rds
 rna-assay: RNA # default: RNA; RNA assay name
-atac-assay: ATAC # default: ATAC; ATAC assay name
+# atac-assay: ATAC # default: ATAC; ATAC assay name
 adt-assay: ADT # default: ADT; ADT assay name
 # merge.R
 gene-types: # * default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl gene biotypes to keep
@@ -111,36 +111,37 @@ gene-types: # * default: protein_coding, lincRNA, IG_C_gene, TR_C_gene; Ensembl 
   - lincRNA
   - IG_C_gene
   - TR_C_gene
-peak-method: # ** default: null; options: bulk, fixed, disjoin, reduce; method to select joint ATAC peaks across samples
-  null
-binarize: # ** default: false; binarize ATAC counts
-  false
+# peak-method: # ** default: null; options: bulk, fixed, disjoin, reduce; method to select joint ATAC peaks across samples
+#   null
+# binarize: # ** default: false; binarize ATAC counts
+#   false
 downsample: # ** default: false; downsample counts to match sequencing depth across libraries
   false
 filter-cells: null # default: null; logical expression to filter cells based on metadata columns (matching cells will be discarded; to prevent parsing errors, use ONLY double quotes within the expression)
 # normalise.R
 n-features: # ** default: 3000; maximum number of variable features to select
-  3000
+  5000
 clr: # ** default: seurat; options: seurat, original; centred-log ratio (CLR) transformation method for ADT data
-  seurat
+  original
 regress-percent-mitochondrial: # ** default: false; regress out percentage mitochondrial gene expression
-  false
+  true
 regress-cell-cycle: # ** default: false; regress out cell cycle scores
-  false
+  true
 exp: orig.ident # default: orig.ident; name of metadata field specifying original experiment
 rna-filter-features: ^MT-|^RP[SL] # default: ^MT-|^RP[SL]; regular expression pattern to filter RNA variable features (matching features will be removed)
-atac-filter-features: ^chrM|^chrY # default: ^chrM|^chrY; regular expression pattern to filter ATAC variable features (matching features will be removed)
+# atac-filter-features: ^chrM|^chrY # default: ^chrM|^chrY; regular expression pattern to filter ATAC variable features (matching features will be removed)
 # integrate.R
 batch: # * default: orig.ident; name(s) of metadata field(s) to use for batch variable
   - orig.ident
 normalisation-method: # ** default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
   LogNormalize
 integration-method: # ** default: null; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
-  null
+  - harmony
+  - scvi
 integration-args: # additional arguments to pass to each integration method (to prevent parsing errors, use ONLY double quotes within the arguments)
   rpca: null
   jpca: null
   cca: null
   fastmnn: null
-  harmony: null
-  scvi: null
+  harmony: meta_data = seu[[]], vars_use = c("donor", "batch")
+  scvi: n_layers = 2, n_latent = 50, empirical_protein_background_prior = FALSE, max_epochs = 200
