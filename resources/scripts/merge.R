@@ -167,35 +167,83 @@ mat <- future_map(
 mat <- mat[!is.na(names(mat))] # drop unrecognized feature types
 if (!length(mat)) stop("No valid feature types found in features matrices")
 # Clean up feature names in RNA assays
-# convert RNA feature names from Ensembl ID to gene symbol and extract feature metadata
-# only keep genes annotated as protein-coding or lincRNA
+# auto-detect if feature names are Ensembl IDs or gene symbols, then extract relevant feature metadata from EnsDb.Hsapiens.v86
+# only keep user-sepcified gene biotypes
 # adapted from source code for Azimuth:::ConvertEnsemblToSymbol but modified to use EnsDb.Hsapiens.v86
 # NOTE: this method leads to loss of features if Ensembl IDs do not map to a gene symbol in database
 #       an alternative approach would be to use the feature metadata in features.tsv.gz (from CellRanger/STARsolo output)
 if (!is.null(mat$RNA)) {
-  logger::log_info("Cleaning up feature names")
+  logger::log_info("Cleaning up feature names and extracting feature metadata")
   ensdb <- EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86
   res <- future_map(
     .x = mat$RNA,
     .f = function(x, gene.types = params$gene_types, db = ensdb) {
       df <- data.frame(rownames = rownames(x))
-      df$ensembl_id <- sub(pattern = "[.][0-9]*", replacement = "", x = df$rownames)
-      mapping <- ensembldb::select(
-        db,
-        keys = df$ensembl_id,
-        keytype = "GENEID",
-        columns = c("GENEID", "SYMBOL", "GENEBIOTYPE")
-      ) %>%
-        dplyr::rename(
-          ensembl_id = GENEID,
-          gene_symbol = SYMBOL,
-          gene_type = GENEBIOTYPE
-        )
-      df <- left_join(df, mapping, by = "ensembl_id") %>% tibble::column_to_rownames("rownames")
+      # Auto-detect feature type by checking if majority of features look like Ensembl IDs (i.e. start with 'ENS')
+      names <- sub(pattern = "[.][0-9]*", replacement = "", x = df$rownames)
+      if ((sum(grepl(pattern = "^ENS[A-Z]*[0-9]+", x = names)) / length(names)) > 0.5) {
+        logger::log_info("Detected Ensembl IDs, converting to gene symbols")
+        df$ensembl_id <- names
+        df$gene_symbol <- NA_character_
+
+        mapping <- ensembldb::select(
+          db,
+          keys = df$ensembl_id,
+          keytype = "GENEID",
+          columns = c("GENEID", "SYMBOL", "GENEBIOTYPE")
+        ) %>%
+          dplyr::rename(
+            ensembl_id = GENEID,
+            gene_symbol = SYMBOL,
+            gene_type = GENEBIOTYPE
+          )
+
+        # Check for unmapped IDs
+        unmapped <- setdiff(df$ensembl_id, mapping$ensembl_id)
+        if (length(unmapped) > 0) logger::log_warn("Found {length(unmapped)} Ensembl IDs with no gene symbol mapping in database; these will be excluded.")
+
+        df <- left_join(df, mapping, by = "ensembl_id") %>%
+          tibble::column_to_rownames("rownames")
+      } else {
+        logger::log_info("Detected gene symbols")
+        df$gene_symbol <- df$rownames
+        # Clean gene symbols by removing make.unique() suffixes (e.g., ".1", ".2") for database lookup
+        df$gene_symbol_clean <- sub(pattern = "\\.[0-9]+$", replacement = "", x = df$rownames)
+        df$ensembl_id <- NA_character_
+
+        mapping <- ensembldb::select(
+          db,
+          keys = unique(df$gene_symbol_clean),
+          keytype = "SYMBOL",
+          columns = c("GENEID", "SYMBOL", "GENEBIOTYPE")
+        ) %>%
+          dplyr::rename(
+            ensembl_id = GENEID,
+            gene_symbol = SYMBOL,
+            gene_type = GENEBIOTYPE
+          ) %>%
+          # Handle one-to-many mappings by keeping only the first Ensembl ID for each gene symbol
+          # This prioritizes the primary/canonical gene entry when multiple IDs exist
+          group_by(gene_symbol) %>%
+          slice_head(n = 1) %>%
+          ungroup()
+
+        # Check for unmapped symbols (using cleaned symbols)
+        unmapped <- setdiff(df$gene_symbol_clean, mapping$gene_symbol)
+        if (length(unmapped) > 0) logger::log_warn("Found {length(unmapped)} gene symbols with no Ensembl ID mapping in database.")
+
+        df <- left_join(df, mapping, by = c("gene_symbol_clean" = "gene_symbol")) %>%
+          # Remove cleaned gene symbols from final output
+          select(-gene_symbol_clean) %>%
+          tibble::column_to_rownames("rownames")
+      }
+
+      # Filter and clean up gene symbols
       df <- df[rownames(x), ] %>%
         filter(!is.na(gene_symbol), grepl(pattern = paste(gene.types, collapse = "|"), x = gene_type)) %>%
         mutate(gene_symbol = make.unique(gsub(pattern = "_", replacement = "", x = gene_symbol))) %>%
         arrange(gene_symbol)
+
       x <- x[rownames(df), ]
       rownames(x) <- df$gene_symbol
       rownames(df) <- df$gene_symbol
