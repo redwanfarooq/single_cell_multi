@@ -58,7 +58,7 @@ logger::log_errors()
 
 # Extract parameters from command line options
 logger::log_info("Parsing command line arguments")
-params <- lapply(opt, function(x) if (is.character(x)) stringr::str_split_1(string = x, pattern = ";") else x)
+params <- lapply(opt, function(x) if (is.character(x) && length(x) == 1) stringr::str_split_1(string = x, pattern = ";") else x)
 
 # Check parameters
 for (x in c("hdf5", "metadata", "fragments", "summits")) {
@@ -161,8 +161,13 @@ mat <- future_map(
   },
   .options = furrr.options
 ) %>%
-  setNames(params$samples) %>%
-  transpose() %>%
+  setNames(params$samples)
+types <- mat %>%
+  map(.f = names) %>%
+  purrr::reduce(.f = c) %>%
+  unique()
+mat <- mat %>%
+  list_transpose(template = types) %>%
   setNames(case_match(names(.), "Gene Expression" ~ "RNA", "Peaks" ~ "ATAC", "Antibody Capture" ~ "ADT", .default = NA)) # translate 10x feature types
 mat <- mat[!is.na(names(mat))] # drop unrecognized feature types
 if (!length(mat)) stop("No valid feature types found in features matrices")
@@ -170,21 +175,21 @@ if (!length(mat)) stop("No valid feature types found in features matrices")
 # auto-detect if feature names are Ensembl IDs or gene symbols, then extract relevant feature metadata from EnsDb.Hsapiens.v86
 # only keep user-sepcified gene biotypes
 # adapted from source code for Azimuth:::ConvertEnsemblToSymbol but modified to use EnsDb.Hsapiens.v86
-# NOTE: this method leads to loss of features if Ensembl IDs do not map to a gene symbol in database
+# NOTE: this method leads to loss of features if Ensembl IDs do not map to a gene symbol in database or vice versa
 #       an alternative approach would be to use the feature metadata in features.tsv.gz (from CellRanger/STARsolo output)
 if (!is.null(mat$RNA)) {
   logger::log_info("Cleaning up feature names and extracting feature metadata")
   ensdb <- EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86
+  orgdb <- org.Hs.eg.db::org.Hs.eg.db
   res <- future_map(
     .x = mat$RNA,
-    .f = function(x, gene.types = params$gene_types, db = ensdb) {
+    .f = function(x, gene.types = params$gene_types, db = ensdb, search = orgdb) {
       df <- data.frame(rownames = rownames(x))
       # Auto-detect feature type by checking if majority of features look like Ensembl IDs (i.e. start with 'ENS')
       names <- sub(pattern = "[.][0-9]*", replacement = "", x = df$rownames)
       if ((sum(grepl(pattern = "^ENS[A-Z]*[0-9]+", x = names)) / length(names)) > 0.5) {
-        logger::log_info("Detected Ensembl IDs, converting to gene symbols")
+        message("Detected Ensembl IDs")
         df$ensembl_id <- names
-        df$gene_symbol <- NA_character_
 
         mapping <- ensembldb::select(
           db,
@@ -200,20 +205,17 @@ if (!is.null(mat$RNA)) {
 
         # Check for unmapped IDs
         unmapped <- setdiff(df$ensembl_id, mapping$ensembl_id)
-        if (length(unmapped) > 0) logger::log_warn("Found {length(unmapped)} Ensembl IDs with no gene symbol mapping in database; these will be excluded.")
+        if (length(unmapped) > 0) logger::log_warn("Unable to find {length(unmapped)} genes in Ensembl database; these will be excluded.")
 
         df <- left_join(df, mapping, by = "ensembl_id") %>%
           tibble::column_to_rownames("rownames")
       } else {
-        logger::log_info("Detected gene symbols")
-        df$gene_symbol <- df$rownames
-        # Clean gene symbols by removing make.unique() suffixes (e.g., ".1", ".2") for database lookup
-        df$gene_symbol_clean <- sub(pattern = "\\.[0-9]+$", replacement = "", x = df$rownames)
-        df$ensembl_id <- NA_character_
+        message("Detected gene symbols")
+        df$gene_symbol <- names
 
         mapping <- ensembldb::select(
           db,
-          keys = unique(df$gene_symbol_clean),
+          keys = unique(df$gene_symbol),
           keytype = "SYMBOL",
           columns = c("GENEID", "SYMBOL", "GENEBIOTYPE")
         ) %>%
@@ -228,13 +230,50 @@ if (!is.null(mat$RNA)) {
           slice_head(n = 1) %>%
           ungroup()
 
-        # Check for unmapped symbols (using cleaned symbols)
-        unmapped <- setdiff(df$gene_symbol_clean, mapping$gene_symbol)
-        if (length(unmapped) > 0) logger::log_warn("Found {length(unmapped)} gene symbols with no Ensembl ID mapping in database.")
+        # Check for unmapped symbols
+        unmapped <- setdiff(df$gene_symbol, mapping$gene_symbol)
+        if (length(unmapped) > 0) {
+          message(length(unmapped), " gene symbols with no Ensembl ID in database; searching using known aliases...")
+          # Try to map unmapped symbols using all known aliases
+          aliases <- AnnotationDbi::select(
+            search,
+            keys = unmapped,
+            keytype = "ALIAS",
+            columns = c("ALIAS", "ENSEMBL")
+          ) %>%
+            dplyr::rename(
+              ensembl_id = ENSEMBL,
+              gene_symbol = ALIAS
+            ) %>%
+            # Remove NA mappings
+            filter(!is.na(ensembl_id)) %>%
+            # Handle one-to-many mappings by keeping only the first Ensembl ID for each gene symbol
+            # This prioritizes the primary/canonical gene entry when multiple IDs exist
+            group_by(gene_symbol) %>%
+            slice_head(n = 1) %>%
+            ungroup()
+          if (nrow(aliases) > 0) {
+            message("Successfully found ", nrow(aliases), " additional gene symbols using aliases.")
+            mapping.aliases <- ensembldb::select(
+              db,
+              keys = aliases$ensembl_id,
+              keytype = "GENEID",
+              columns = c("GENEID", "GENEBIOTYPE")
+            ) %>%
+              dplyr::rename(
+                ensembl_id = GENEID,
+                gene_type = GENEBIOTYPE
+              )
+            aliases <- left_join(aliases, mapping.aliases, by = "ensembl_id")
+            mapping <- bind_rows(mapping, aliases)
+          } else {
+            message("Unable to find additional gene symbols using aliases.")
+          }
+          unmapped <- setdiff(df$gene_symbol, mapping$gene_symbol)
+          if (length(unmapped) > 0) logger::log_warn("Unable to find {length(unmapped)} genes in Ensembl database; these will be excluded.")
+        }
 
-        df <- left_join(df, mapping, by = c("gene_symbol_clean" = "gene_symbol")) %>%
-          # Remove cleaned gene symbols from final output
-          select(-gene_symbol_clean) %>%
+        df <- left_join(df, mapping, by = "gene_symbol") %>%
           tibble::column_to_rownames("rownames")
       }
 
@@ -433,7 +472,7 @@ if (params$binarize && !is.null(mat$ATAC)) {
     .options = furrr.options
   )
 }
-mat <- transpose(mat)
+mat <- list_transpose(mat)
 
 
 # Create merged Seurat object
@@ -446,6 +485,7 @@ seu <- future_pmap(
     gene.metadata = if (exists("gene.metadata")) gene.metadata else map(.x = seq_along(mat), .f = function(x) NULL)
   ),
   function(x, sample, cell.metadata, gene.metadata, fragments.objects = eval(if (exists("fragments")) fragments else NULL)) {
+    x <- x[!map_lgl(x, is.null)] # remove empty assays
     assays <- map2(
       .x = x,
       .y = names(x),
@@ -482,7 +522,9 @@ seu <- future_pmap(
   },
   .options = furrr.options
 )
-seu <- if (length(seu) > 1) merge(x = seu[[1]], y = seu[seq.int(2, length(seu), by = 1)], add.cell.ids = params$samples) else seu[[1]]
+suppressWarnings({
+  seu <- if (length(seu) > 1) merge(x = seu[[1]], y = seu[seq.int(2, length(seu), by = 1)], add.cell.ids = params$samples) else seu[[1]]
+}) # suppress unhelpful warning
 
 # Join layers
 for (x in Assays(seu)) {
