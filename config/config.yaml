@@ -132,7 +132,8 @@ rna-filter-features: ^MT-|^RP[SL] # default: ^MT-|^RP[SL]; regular expression pa
 # atac-filter-features: ^chrM|^chrY # default: ^chrM|^chrY; regular expression pattern to filter ATAC variable features (matching features will be removed)
 # integrate.R
 batch: # * default: orig.ident; name(s) of metadata field(s) to use for batch variable
-  - orig.ident
+  - sample_id
+  - donor
 normalisation-method: # ** default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
   LogNormalize
 integration-method: # ** default: null; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
@@ -143,5 +144,5 @@ integration-args: # additional arguments to pass to each integration method (to 
   jpca: null
   cca: null
   fastmnn: null
-  harmony: meta_data = seu[[]], vars_use = c("donor", "batch")
+  harmony: meta_data = seu[[]], vars_use = "batch"
   scvi: n_layers = 2, n_latent = 50, empirical_protein_background_prior = FALSE, max_epochs = 200
