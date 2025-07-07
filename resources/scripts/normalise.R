@@ -52,7 +52,7 @@ logger::log_errors()
 
 # Extract parameters from command line options
 logger::log_info("Parsing command line arguments")
-params <- lapply(opt, function(x) if (is.character(x)) stringr::str_split_1(string = x, pattern = ";") else x)
+params <- lapply(opt, function(x) if (is.character(x) && length(x) == 1) stringr::str_split_1(string = x, pattern = ";") else x)
 
 # Check parameters
 if (!grepl(pattern = "\\.qs$|\\.rds$", x = params$output, ignore.case = TRUE)) stop("Argument <output>: invalid file extension; must be either 'qs' or 'rds'")

@@ -28,7 +28,7 @@ HarmonyIntegration <- function(object,
   var.args <- list(...)
   if (!is.null(var.args$meta_data) && !is.null(var.args$vars_use)) {
     vars_use <- var.args$vars_use
-    groups <- var.args$meta_data[, vars_use]
+    groups <- var.args$meta_data[, vars_use, drop = FALSE]
   } else {
     vars_use <- "group"
     groups <- Seurat:::CreateIntegrationGroups(object, layers = layers, scale.layer = scale.layer)
