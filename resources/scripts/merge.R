@@ -188,7 +188,7 @@ if (!is.null(mat$RNA)) {
       # Auto-detect feature type by checking if majority of features look like Ensembl IDs (i.e. start with 'ENS')
       names <- sub(pattern = "[.][0-9]*", replacement = "", x = df$rownames)
       if ((sum(grepl(pattern = "^ENS[A-Z]*[0-9]+", x = names)) / length(names)) > 0.5) {
-        message("Detected Ensembl IDs")
+        if (!params$quiet) message("Detected Ensembl IDs")
         df$ensembl_id <- names
 
         mapping <- ensembldb::select(
@@ -210,7 +210,7 @@ if (!is.null(mat$RNA)) {
         df <- left_join(df, mapping, by = "ensembl_id") %>%
           tibble::column_to_rownames("rownames")
       } else {
-        message("Detected gene symbols")
+        if (!params$quiet) message("Detected gene symbols")
         df$gene_symbol <- names
 
         mapping <- ensembldb::select(
@@ -233,7 +233,7 @@ if (!is.null(mat$RNA)) {
         # Check for unmapped symbols
         unmapped <- setdiff(df$gene_symbol, mapping$gene_symbol)
         if (length(unmapped) > 0) {
-          message(length(unmapped), " gene symbols with no Ensembl ID in database; searching using known aliases...")
+          if (!params$quiet) message(length(unmapped), " gene symbols with no Ensembl ID in database; searching using known aliases...")
           # Try to map unmapped symbols using all known aliases
           aliases <- AnnotationDbi::select(
             search,
@@ -253,7 +253,7 @@ if (!is.null(mat$RNA)) {
             slice_head(n = 1) %>%
             ungroup()
           if (nrow(aliases) > 0) {
-            message("Successfully found ", nrow(aliases), " additional gene symbols using aliases.")
+            if (!params$quiet) message("Successfully found ", nrow(aliases), " additional gene symbols using aliases.")
             mapping.aliases <- ensembldb::select(
               db,
               keys = aliases$ensembl_id,
@@ -267,7 +267,7 @@ if (!is.null(mat$RNA)) {
             aliases <- left_join(aliases, mapping.aliases, by = "ensembl_id")
             mapping <- bind_rows(mapping, aliases)
           } else {
-            message("Unable to find additional gene symbols using aliases.")
+            if (!params$quiet) message("Unable to find additional gene symbols using aliases.")
           }
           unmapped <- setdiff(df$gene_symbol, mapping$gene_symbol)
           if (length(unmapped) > 0) logger::log_warn("Unable to find {length(unmapped)} genes in Ensembl database; these will be excluded.")
