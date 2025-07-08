@@ -144,5 +144,5 @@ integration-args: # additional arguments to pass to each integration method (to 
   jpca: null
   cca: null
   fastmnn: null
-  harmony: meta_data = seu[[]], vars_use = "batch"
+  harmony: null
   scvi: n_layers = 2, n_latent = 50, empirical_protein_background_prior = FALSE, max_epochs = 200
