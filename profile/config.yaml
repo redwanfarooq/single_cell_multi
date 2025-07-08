@@ -76,6 +76,6 @@ set-resources:
     # mem: 100GiB
     runtime: 24h
   integrate:
-    # partition: gpu-ada
-    # mem: 150GiB
+    partition: gpu-ada
+    mem: 150GiB
     runtime: 24h
