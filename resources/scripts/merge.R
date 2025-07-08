@@ -186,9 +186,9 @@ if (!is.null(mat$RNA)) {
     .f = function(x, gene.types = params$gene_types, db = ensdb, search = orgdb) {
       df <- data.frame(rownames = rownames(x))
       # Auto-detect feature type by checking if majority of features look like Ensembl IDs (i.e. start with 'ENS')
-      names <- sub(pattern = "[.][0-9]*", replacement = "", x = df$rownames)
+      names <- sub(pattern = "[.][0-9]*", replacement = "", x = df$rownames) # remove version numbers
       if ((sum(grepl(pattern = "^ENS[A-Z]*[0-9]+", x = names)) / length(names)) > 0.5) {
-        message("Detected Ensembl IDs")
+        if (!params$quiet) message("Detected Ensembl IDs")
         df$ensembl_id <- names
 
         mapping <- ensembldb::select(
@@ -210,12 +210,12 @@ if (!is.null(mat$RNA)) {
         df <- left_join(df, mapping, by = "ensembl_id") %>%
           tibble::column_to_rownames("rownames")
       } else {
-        message("Detected gene symbols")
-        df$gene_symbol <- names
+        if (!params$quiet) message("Detected gene symbols")
+        df$gene_symbol_original <- names
 
         mapping <- ensembldb::select(
-          db,
-          keys = unique(df$gene_symbol),
+          EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86,
+          keys = unique(df$gene_symbol_original),
           keytype = "SYMBOL",
           columns = c("GENEID", "SYMBOL", "GENEBIOTYPE")
         ) %>%
@@ -224,68 +224,72 @@ if (!is.null(mat$RNA)) {
             gene_symbol = SYMBOL,
             gene_type = GENEBIOTYPE
           ) %>%
+          # Remove NA mappings
+          dplyr::filter(!is.na(ensembl_id)) %>%
           # Handle one-to-many mappings by keeping only the first Ensembl ID for each gene symbol
           # This prioritizes the primary/canonical gene entry when multiple IDs exist
           group_by(gene_symbol) %>%
           slice_head(n = 1) %>%
-          ungroup()
+          ungroup() %>%
+          mutate(gene_symbol_original = gene_symbol)
 
         # Check for unmapped symbols
-        unmapped <- setdiff(df$gene_symbol, mapping$gene_symbol)
+        unmapped <- setdiff(df$gene_symbol_original, mapping$gene_symbol_original)
         if (length(unmapped) > 0) {
-          message(length(unmapped), " gene symbols with no Ensembl ID in database; searching using known aliases...")
+          if (!params$quiet) message(length(unmapped), " gene symbols with no Ensembl ID in database; searching using known aliases...")
           # Try to map unmapped symbols using all known aliases
           aliases <- AnnotationDbi::select(
             search,
             keys = unmapped,
             keytype = "ALIAS",
-            columns = c("ALIAS", "ENSEMBL")
+            columns = c("ENSEMBL", "ALIAS")
           ) %>%
             dplyr::rename(
               ensembl_id = ENSEMBL,
-              gene_symbol = ALIAS
+              gene_symbol_original = ALIAS
             ) %>%
             # Remove NA mappings
-            filter(!is.na(ensembl_id)) %>%
+            dplyr::filter(!is.na(ensembl_id)) %>%
             # Handle one-to-many mappings by keeping only the first Ensembl ID for each gene symbol
             # This prioritizes the primary/canonical gene entry when multiple IDs exist
-            group_by(gene_symbol) %>%
+            group_by(gene_symbol_original) %>%
             slice_head(n = 1) %>%
             ungroup()
           if (nrow(aliases) > 0) {
-            message("Successfully found ", nrow(aliases), " additional gene symbols using aliases.")
             mapping.aliases <- ensembldb::select(
               db,
               keys = aliases$ensembl_id,
               keytype = "GENEID",
-              columns = c("GENEID", "GENEBIOTYPE")
+              columns = c("GENEID", "SYMBOL", "GENEBIOTYPE")
             ) %>%
               dplyr::rename(
                 ensembl_id = GENEID,
+                gene_symbol = SYMBOL,
                 gene_type = GENEBIOTYPE
               )
-            aliases <- left_join(aliases, mapping.aliases, by = "ensembl_id")
-            mapping <- bind_rows(mapping, aliases)
+            if (!params$quiet) message("Successfully found ", nrow(mapping.aliases), " additional gene symbols using aliases.")
+            mapping.aliases <- left_join(aliases, mapping.aliases, by = "ensembl_id")
+            mapping <- bind_rows(mapping, mapping.aliases) %>%
+              distinct()
           } else {
-            message("Unable to find additional gene symbols using aliases.")
+            if (!params$quiet) message("Unable to find additional gene symbols using aliases.")
           }
-          unmapped <- setdiff(df$gene_symbol, mapping$gene_symbol)
+          unmapped <- setdiff(df$gene_symbol_original, mapping$gene_symbol_original)
           if (length(unmapped) > 0) logger::log_warn("Unable to find {length(unmapped)} genes in Ensembl database; these will be excluded.")
         }
 
-        df <- left_join(df, mapping, by = "gene_symbol") %>%
+        df <- left_join(df, mapping, by = "gene_symbol_original") %>%
           tibble::column_to_rownames("rownames")
       }
 
-      # Filter and clean up gene symbols
+      # Filter genes by user-specified gene types and sort by gene symbol
       df <- df[rownames(x), ] %>%
-        filter(!is.na(gene_symbol), grepl(pattern = paste(gene.types, collapse = "|"), x = gene_type)) %>%
-        mutate(gene_symbol = make.unique(gsub(pattern = "_", replacement = "", x = gene_symbol))) %>%
+        dplyr::filter(!is.na(gene_symbol), !is.na(ensembl_id), grepl(pattern = paste(gene.types, collapse = "|"), x = gene_type)) %>%
         arrange(gene_symbol)
 
       x <- x[rownames(df), ]
-      rownames(x) <- df$gene_symbol
-      rownames(df) <- df$gene_symbol
+      rownames(x) <- make.unique(df$gene_symbol)
+      rownames(df) <- make.unique(df$gene_symbol)
       return(list(counts = x, metadata = df))
     },
     .options = furrr.options
@@ -522,9 +526,7 @@ seu <- future_pmap(
   },
   .options = furrr.options
 )
-suppressWarnings({
-  seu <- if (length(seu) > 1) merge(x = seu[[1]], y = seu[seq.int(2, length(seu), by = 1)], add.cell.ids = params$samples) else seu[[1]]
-}) # suppress unhelpful warning
+seu <- if (length(seu) > 1) merge(x = seu[[1]], y = seu[seq.int(2, length(seu), by = 1)], add.cell.ids = params$samples) else seu[[1]]
 
 # Join layers
 for (x in Assays(seu)) {
