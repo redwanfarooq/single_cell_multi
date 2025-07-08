@@ -33,12 +33,14 @@ git submodule update --remote single_cell_multi
             + DropletUtils
             + batchelor
             + ensembldb
+            + AnnotationDbi
             + EnsDb.Hsapiens.v86
+            + org.Hs.eg.db
             + GenomicRanges
             + GenomeInfoDb
             + glmGamPoi
     - [MACS2 >=v2.2.9](https://github.com/macs3-project/MACS/wiki/Install-macs2)
-    - [scvi-tools >=v1.2.0](https://scvi-tools.org/en/stable/install.html)
+    - [scvi-tools >=v1.3.2](https://scvi-tools.org/en/stable/install.html)
 
 # Setup
 1. Install software for global environment (requires Anaconda or Miniconda - see [installation instructions](https://conda.io/projects/conda/en/stable/user-guide/install/index.html))
