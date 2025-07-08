@@ -28,7 +28,7 @@ HarmonyIntegration <- function(object,
   var.args <- list(...)
   if (!is.null(var.args$meta_data) && !is.null(var.args$vars_use)) {
     vars_use <- var.args$vars_use
-    groups <- var.args$meta_data[, vars_use, drop = FALSE]
+    groups <- var.args$meta_data[SeuratObject::Cells(object), vars_use, drop = FALSE]
   } else {
     vars_use <- "group"
     groups <- Seurat:::CreateIntegrationGroups(object, layers = layers, scale.layer = scale.layer)
@@ -121,7 +121,23 @@ scVIIntegration <- function(object,
   features <- features %||% Seurat::SelectIntegrationFeatures5(object = object)
   assay <- assay %||% SeuratObject::DefaultAssay(object = object)
   layers <- layers %||% SeuratObject::Layers(object = object, search = "data")
-  groups <- Seurat:::CreateIntegrationGroups(object, layers = layers, scale.layer = scale.layer)
+  var.args <- list(...)
+  if (!is.null(var.args$meta_data)) {
+    if (!is.null(var.args$batch_key) || !is.null(var.args$categorical_covariate_keys) || !is.null(var.args$continuous_covariate_keys)) {
+      args.setup <- list(
+        batch_key = var.args$batch_key,
+        categorical_covariate_keys = var.args$categorical_covariate_keys,
+        continuous_covariate_keys = var.args$continuous_covariate_keys
+      )
+      vars_use <- c(var.args$batch_key, var.args$categorical_covariate_keys, var.args$continuous_covariate_keys)
+      groups <- var.args$meta_data[SeuratObject::Cells(object), vars_use, drop = FALSE]
+    }
+  }
+  if (!exists("groups")) {
+    args.setup <- list(batch_key = "group")
+    groups <- Seurat:::CreateIntegrationGroups(object, layers = layers, scale.layer = scale.layer)
+  }
+  var.args$meta_data <- var.args$batch_key <- var.args$categorical_covariate_keys <- var.args$continuous_covariate_keys <- NULL
 
   if (verbose) message("Loading Python libraries")
   ad <- reticulate::import("anndata", convert = FALSE)
@@ -137,7 +153,7 @@ scVIIntegration <- function(object,
   )
   if (is.na(model)) stop("Unable to infer modality from assay name: ", assay)
   # extract user-defined model parameters accounting for parametrisation differences
-  args.model <- list(...)
+  args.model <- var.args
   for (param in c("n_hidden", "n_layers", "n_latent")) {
     if (!is.null(args.model[[param]])) {
       args.model[[param]] <- as.integer(args.model[[param]])
@@ -157,7 +173,6 @@ scVIIntegration <- function(object,
   # extract counts, integration groups and feature metadata and create AnnData object
   if (is(object, "Assay5")) object <- SeuratObject::JoinLayers(object = object, layers = "counts")
   args.adata <- list(obs = groups, var = NULL)
-  args.setup <- list(batch_key = "group")
   if (model == "TOTALVI") {
     # create a dummy gene count matrix
     args.adata$X <- scipy$sparse$csr_matrix(SeuratObject::SparseEmptyMatrix(nrow = ncol(object), ncol = 1, rownames = colnames(object), colnames = "XXX"))
