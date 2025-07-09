@@ -28,13 +28,13 @@ HarmonyIntegration <- function(object,
   var.args <- list(...)
   if (!is.null(var.args$meta_data) && !is.null(var.args$vars_use)) {
     vars_use <- var.args$vars_use
-    groups <- var.args$meta_data[, vars_use, drop = FALSE]
+    groups <- var.args$meta_data[colnames(object), vars_use, drop = FALSE]
   } else {
+    if (!is.null(var.args$meta_data) || !is.null(var.args$vars_use)) warning("Arguments 'meta_data' and 'vars_use' are not both provided; using Seurat::CreateIntegrationGroups() instead.")
     vars_use <- "group"
     groups <- Seurat:::CreateIntegrationGroups(object, layers = layers, scale.layer = scale.layer)
   }
-  var.args$meta_data <- NULL
-  var.args$vars_use <- NULL
+  var.args$meta_data <- vars.args$vars_use <- NULL
 
   if (verbose) message("Running Harmony")
   out <- do.call(
@@ -121,7 +121,21 @@ scVIIntegration <- function(object,
   features <- features %||% Seurat::SelectIntegrationFeatures5(object = object)
   assay <- assay %||% SeuratObject::DefaultAssay(object = object)
   layers <- layers %||% SeuratObject::Layers(object = object, search = "data")
-  groups <- Seurat:::CreateIntegrationGroups(object, layers = layers, scale.layer = scale.layer)
+  var.args <- list(...)
+  if (!is.null(var.args$meta_data) && !is.null(var.args$batch_key)) {
+    args.setup <- list(batch_key = var.args$batch_key)
+    if (!is.null(var.args$categorical_covariate_keys) || !is.null(var.args$continuous_covariate_keys)) {
+      args.setup$categorical_covariate_keys <- as.list(var.args$categorical_covariate_keys)
+      args.setup$continuous_covariate_keys <- as.list(var.args$continuous_covariate_keys)
+    }
+    vars_use <- c(var.args$batch_key, var.args$categorical_covariate_keys, var.args$continuous_covariate_keys) |> unlist()
+    groups <- var.args$meta_data[colnames(object), vars_use, drop = FALSE]
+  } else {
+    if (!is.null(var.args$meta_data) || !is.null(var.args$batch_key)) warning("Arguments 'meta_data' and 'batch_key' are not both provided; using Seurat::CreateIntegrationGroups() instead.")
+    args.setup <- list(batch_key = "group")
+    groups <- Seurat:::CreateIntegrationGroups(object, layers = layers, scale.layer = scale.layer)
+  }
+  var.args$meta_data <- var.args$batch_key <- var.args$categorical_covariate_keys <- var.args$continuous_covariate_keys <- NULL
 
   if (verbose) message("Loading Python libraries")
   ad <- reticulate::import("anndata", convert = FALSE)
@@ -137,7 +151,7 @@ scVIIntegration <- function(object,
   )
   if (is.na(model)) stop("Unable to infer modality from assay name: ", assay)
   # extract user-defined model parameters accounting for parametrisation differences
-  args.model <- list(...)
+  args.model <- var.args
   for (param in c("n_hidden", "n_layers", "n_latent")) {
     if (!is.null(args.model[[param]])) {
       args.model[[param]] <- as.integer(args.model[[param]])
@@ -157,7 +171,6 @@ scVIIntegration <- function(object,
   # extract counts, integration groups and feature metadata and create AnnData object
   if (is(object, "Assay5")) object <- SeuratObject::JoinLayers(object = object, layers = "counts")
   args.adata <- list(obs = groups, var = NULL)
-  args.setup <- list(batch_key = "group")
   if (model == "TOTALVI") {
     # create a dummy gene count matrix
     args.adata$X <- scipy$sparse$csr_matrix(SeuratObject::SparseEmptyMatrix(nrow = ncol(object), ncol = 1, rownames = colnames(object), colnames = "XXX"))
@@ -193,7 +206,7 @@ scVIIntegration <- function(object,
   # extract batch-corrected log-normalised counts for ADT data (useful for visualisation and gating populations using biplots)
   # must be obtained directly from the trained model as the latent embedding does not have loading scores for the original features in contrast to PCA-based batch correction methods
   if (model == "TOTALVI") {
-    data <- reticulate::py_to_r(vae$get_normalized_expression(transform_batch = list(unique(groups[, 1])), n_samples = 25L, return_mean = TRUE))[[2]]
+    data <- reticulate::py_to_r(vae$get_normalized_expression(transform_batch = list(unique(groups[, 1, drop = TRUE])), n_samples = 25L, return_mean = TRUE))[[2]]
     data <- data |>
       t() |>
       as("CsparseMatrix") |>
