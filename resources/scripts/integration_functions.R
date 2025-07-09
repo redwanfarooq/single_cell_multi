@@ -34,7 +34,7 @@ HarmonyIntegration <- function(object,
     vars_use <- "group"
     groups <- Seurat:::CreateIntegrationGroups(object, layers = layers, scale.layer = scale.layer)
   }
-  var.args$meta_data <- vars.args$vars_use <- NULL
+  var.args$meta_data <- var.args$vars_use <- NULL
 
   if (verbose) message("Running Harmony")
   out <- do.call(
