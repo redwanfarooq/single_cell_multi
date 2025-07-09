@@ -143,5 +143,5 @@ integration-args: # additional arguments to pass to each integration method (to 
   jpca: null
   cca: null
   fastmnn: null
-  harmony: meta_data = seu[[]], vars_use = c("donor", "batch")
-  scvi: n_layers = 2, n_latent = 50, empirical_protein_background_prior = FALSE, max_epochs = 200, meta_data = seu[[]], categorical_covariate_keys = c("donor", "batch")
+  harmony: meta_data = seu[[]], vars_use = c("batch", "donor", "chemistry")
+  scvi: n_layers = 2, n_latent = 50, empirical_protein_background_prior = FALSE, max_epochs = 200, meta_data = seu[[]], batch_key = "batch", categorical_covariate_keys = c("donor", "chemistry")
