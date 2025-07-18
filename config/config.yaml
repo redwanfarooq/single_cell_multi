@@ -137,11 +137,10 @@ normalisation-method: # ** default: LogNormalize; options: LogNormalize, SCT; ch
   LogNormalize
 integration-method: # ** default: null; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
   - harmony
-  - scvi
 integration-args: # additional arguments to pass to each integration method (to prevent parsing errors, use ONLY double quotes within the arguments)
   rpca: null
   jpca: null
   cca: null
   fastmnn: null
   harmony: meta_data = seu[[]], vars_use = c("donor", "batch", "chemistry")
-  scvi: n_layers = 3, n_latent = 50, empirical_protein_background_prior = FALSE, max_epochs = 400, meta_data = seu[[]], batch_key = "donor", categorical_covariate_keys = c("batch", "chemistry"), continuous_covariate_keys = c("pctMito_RNA", "S.Score", "G2M.Score")
+  scvi: null
