@@ -140,7 +140,7 @@ if (params$rna_assay %in% Assays(seu)) {
       orig.reduction = "'pca'",
       new.reduction = "'integrated.rna'",
       features = "VariableFeatures(object = seu, assay = assay)",
-      dims = glue::glue("1:{ifelse(nrow(seu[[assay]]) < 50, nrow(seu[[assay]]), 50)}"),
+      dims = glue::glue("1:{ifelse(ncol(Embeddings(object = seu, reduction = 'pca')) < 50, ncol(Embeddings(object = seu, reduction = 'pca')), 50)}"),
       verbose = "!params$quiet"
     ) %>%
       paste(names(.), ., sep = " = ", collapse = ", ") %>%
@@ -173,7 +173,7 @@ if (params$atac_assay %in% Assays(seu)) {
       orig.reduction = "'lsi'",
       new.reduction = "'integrated.atac'",
       features = "VariableFeatures(object = tmp)",
-      dims = glue::glue("2:{ifelse(nrow(seu[[assay]]) < 50, nrow(seu[[assay]]), 50)}"),
+      dims = glue::glue("2:{ifelse(ncol(Embeddings(object = seu, reduction = 'lsi')) < 50, ncol(Embeddings(object = seu, reduction = 'lsi')), 50)}"),
       verbose = "!params$quiet"
     ) %>%
       paste(names(.), ., sep = " = ", collapse = ", ") %>%
@@ -199,7 +199,7 @@ if (params$adt_assay %in% Assays(seu)) {
       orig.reduction = "'apca'",
       new.reduction = "'integrated.adt'",
       features = "VariableFeatures(object = seu, assay = assay)",
-      dims = glue::glue("1:{ifelse(nrow(seu[[assay]]) < 50, nrow(seu[[assay]]), 50)}"),
+      dims = glue::glue("1:{ifelse(ncol(Embeddings(object = seu, reduction = 'apca')) < 50, ncol(Embeddings(object = seu, reduction = 'apca')), 50)}"),
       verbose = "!params$quiet"
     ) %>%
       paste(names(.), ., sep = " = ", collapse = ", ") %>%
