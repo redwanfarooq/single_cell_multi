@@ -222,7 +222,7 @@ if (params$adt_assay %in% Assays(seu)) {
       ) <- apply(
         X = LayerData(object = seu, assay = assay, layer = x),
         MARGIN = 2,
-        FUN = function(x) log(x + 1 / exp(sum(log(x + 1)) / length(x))) # original centred-log ratio (CLR) transformation (without Seurat modifications)
+        FUN = function(x) log(x + 1) - mean(log(x + 1)) # original centred-log ratio (CLR) transformation (without Seurat modifications)
       )
     }
     seu <- ScaleData(object = seu, assay = assay, verbose = !params$quiet)
