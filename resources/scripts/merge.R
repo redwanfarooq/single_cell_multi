@@ -214,7 +214,7 @@ if (!is.null(mat$RNA)) {
         df$gene_symbol_original <- names
 
         mapping <- ensembldb::select(
-          EnsDb.Hsapiens.v86::EnsDb.Hsapiens.v86,
+          db,
           keys = unique(df$gene_symbol_original),
           keytype = "SYMBOL",
           columns = c("GENEID", "SYMBOL", "GENEBIOTYPE")
