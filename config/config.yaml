@@ -68,7 +68,7 @@ module: default
 # --------------------------------------------------
 # REQUIRED
 # Output directories
-output_dir: /project/fuggerlab/rfarooq/project/ocrelizumab_multiome/data/processed/cite_seq/cohort_treatment_naive/cellbender/multi
+output_dir: /project/fuggerlab/rfarooq/project/ocrelizumab_multiome/data/processed/cite_seq/cohort_nonresponders/cellbender/multi
 
 # If 'scripts_dir' not specified, defaults to
 # 'resources/scripts'
@@ -117,7 +117,7 @@ binarize: # ** default: false; binarize ATAC counts
   false
 downsample: # ** default: false; downsample counts to match sequencing depth across libraries
   false
-filter-cells: hash_id == "Control" # default: null; logical expression to filter cells based on metadata columns (matching cells will be discarded; to prevent parsing errors, use ONLY double quotes within the expression)
+filter-cells: null # default: null; logical expression to filter cells based on metadata columns (matching cells will be discarded; to prevent parsing errors, use ONLY double quotes within the expression)
 # normalise.R
 n-features: # ** default: 3000; maximum number of variable features to select
   5000
@@ -143,5 +143,5 @@ integration-args: # additional arguments to pass to each integration method (to 
   jpca: null
   cca: null
   fastmnn: null
-  harmony: meta_data = seu[[]], vars_use = c("donor", "batch", "chemistry")
+  harmony: meta_data = seu[[]], vars_use = c("donor", "batch")
   scvi: null
