@@ -60,7 +60,7 @@
 #       - Compute corrected values for ADT data by
 #         projecting integrated embeddings back into
 #         normalised count space
-module: 
+module: default
 
 
 # --------------------------------------------------
@@ -68,7 +68,7 @@ module:
 # --------------------------------------------------
 # REQUIRED
 # Output directories
-output_dir: /project/fuggerlab/rfarooq/project/project_name/data/processed/multi
+output_dir: /project/fuggerlab/rfarooq/project/tonsil_organoid/data/processed/multi
 
 # If 'scripts_dir' not specified, defaults to
 # 'resources/scripts'
@@ -120,11 +120,11 @@ downsample: # ** default: false; downsample counts to match sequencing depth acr
 filter-cells: null # default: null; logical expression to filter cells based on metadata columns (matching cells will be discarded; to prevent parsing errors, use ONLY double quotes within the expression)
 # normalise.R
 n-features: # ** default: 3000; maximum number of variable features to select
-  3000
+  5000
 clr: # ** default: seurat; options: seurat, original; centred-log ratio (CLR) transformation method for ADT data
   seurat
 regress-percent-mitochondrial: # ** default: false; regress out percentage mitochondrial gene expression
-  false
+  true
 regress-cell-cycle: # ** default: false; regress out cell cycle scores
   false
 exp: orig.ident # default: orig.ident; name of metadata field specifying original experiment
@@ -136,7 +136,7 @@ batch: # * default: orig.ident; name(s) of metadata field(s) to use for batch va
 normalisation-method: # ** default: LogNormalize; options: LogNormalize, SCT; chosen normalisation method for RNA data
   LogNormalize
 integration-method: # ** default: null; options: rpca, jpca, cca, fastmnn, harmony, scvi; chosen integration method
-  null
+  harmony
 integration-args: # additional arguments to pass to each integration method (to prevent parsing errors, use ONLY double quotes within the arguments)
   rpca: null
   jpca: null
